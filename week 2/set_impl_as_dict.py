@@ -13,7 +13,8 @@ class Set:
 
     # add an element to the set
     def add(self, elem):
-        self.dict[elem] = True
+        if elem not in self.dict:
+            self.dict[elem] = True
 
     # remove an element from the set
     def pop(self):
@@ -85,7 +86,7 @@ class Set:
     # check if the set is a superset of the other set
     # all items of the other set are contained in the set
     def issuperset(self, other):
-        return other.issubset(self) # for student to fill
+        return other.issubset(self)
 
     # check is there are no common elements between the two sets
     def isdisjoint(self, other):
