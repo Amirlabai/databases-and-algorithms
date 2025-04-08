@@ -1,3 +1,4 @@
+# problem 1
 def remove_dups(l):
     preset_list = set()
     new_list = []
@@ -7,6 +8,7 @@ def remove_dups(l):
             new_list.append(i)
     return new_list
 
+# problem 2
 def has_dup(l):
     present = set()
     for i in l:
@@ -15,12 +17,14 @@ def has_dup(l):
         present.add(i)
     return False     
 
+# problem 3
 def is_element_sum(sum,list_a,list_b):
     set_b = set(list_b)
     for i in list_a:
         if sum - i in set_b:
             print(f"{sum} = {i} + {sum-i}")
 
+# problem 3b
 def is_element_sum_b(sum, list_a, list_b):
     ret = False
     i = 0
@@ -36,6 +40,29 @@ def is_element_sum_b(sum, list_a, list_b):
         else:
             j-=1
     return ret
+
+# problem 4
+def radix_sort(L):
+    RADIX = 10
+    deci = 1
+    while True:
+        buckets = [list() for i in range(RADIX)]
+        done = True
+        for n in L:
+            q = n / deci # q = quotient
+            r = q % RADIX
+            # r = remainder = last digit
+            buckets[r].append(n)
+            if q > 0:
+                done = False
+            # i has more digits
+        i = 0 # Copy buckets to L (so L is rearranged
+        for r in range(RADIX):
+            for n in buckets[r]:
+                L[i] = n
+                i += 1
+        if done: break
+        deci *= RADIX
 
         
 L = [
