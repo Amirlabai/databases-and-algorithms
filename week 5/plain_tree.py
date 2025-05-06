@@ -31,10 +31,10 @@ import tree
 class Node:
     "Class for storing a tree node"
 
-    def __init__(self, element, parent=None, children=[]):
+    def __init__(self, element, parent=None, children=None):
         self.element = element
         self.parent = parent
-        self.children = children  # list of Node objects
+        self.children = children if children is not None else [] # list of Node objects
 
 #--------- Position class ----------
 class Position(tree.Position):
@@ -169,7 +169,7 @@ class PlainTree(tree.Tree):
             d = self.depth(p)
             if isinstance(e,list):
                 e = "\t".join([str(xx) for xx in e])
-            line = 4*d*" "  +  str(e)
+            line = d*"   |" + "_" +  str(e)
             lines.append(line)
         return '\n'.join(lines)
 

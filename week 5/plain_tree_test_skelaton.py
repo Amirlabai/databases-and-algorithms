@@ -1,6 +1,7 @@
 from plain_tree import PlainTree
 import os
 
+
 def test1():
     t = PlainTree()
     p0 = t.add_root(0)
@@ -65,8 +66,6 @@ def Print_Sizes(ftree, position=None, indent=""):
 
 # generate a tree of the directory "dir"
 def FilesTree(dir, ftree=None, position=None):
-
-
     if ftree is None:
         ftree = PlainTree()
         position = ftree.add_root([dir, 0])  # Initialize with dir name and size 0
@@ -77,12 +76,16 @@ def FilesTree(dir, ftree=None, position=None):
             size = os.path.getsize(path)
             if os.path.isdir(path):
                 # Add directory node and recursively explore
-                new_position = ftree.add_child(position, [file, 0])  # Initially size 0 for dirs
+                new_position = ftree.add_child(position, [file,0])  # Initially size 0 for dirs
                 FilesTree(path, ftree, new_position)
-                sum_tree(ftree,ftree.get_root())
+                position.get_element()[1] += new_position.get_element()[1]  # Update directory size after recursion
+                #tot_size = 0  # Reset total size for the next directory
             else:
                 # Add file node with its size
                 ftree.add_child(position, [file, size])
+                position.get_element()[1] += size
+
+        sum_tree(ftree,position)
     except PermissionError:
         print(f"PermissionError: Cannot access {dir}")
     except FileNotFoundError:
@@ -96,9 +99,9 @@ if __name__ == "__main__":
     #test2()
     #ftree = FilesTree("c:/Windows")
     #print ftree
-    ftree = FilesTree("C:/Users/amirl/Documents/Education")
-    #print(ftree)
-    sum_tree(ftree,ftree.get_root())
-    Print_Sizes(ftree)
+    ftree= FilesTree("C:\\Users\\amirl\\Documents\\Education\\סמסטר ו'") #C:\Users\amirl\Documents\Education\סמסטר ו'\0.אספקה\הרצאות
+    print(ftree)
+    #sum_tree(ftree,ftree.get_root())
+    #Print_Sizes(ftree)
 
 
