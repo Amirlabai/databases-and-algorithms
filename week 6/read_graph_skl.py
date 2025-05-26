@@ -12,8 +12,12 @@ from graphics import *
 from point import Point
 from line import Line
 from graph import *
-
+import tkinter as tk
+import sys
 import re
+sys.path.append(r'C:\Users\amirl\\OneDrive\\Documents\\GitHub\\databases-and-algorithms\week_5')
+from plain_tree import PlainTree
+
 
 def parse_ints(s):
     t = re.sub('[(),]', ' ', s)
@@ -47,7 +51,10 @@ def read_graph(graph_name):
 
         # Draw the graph
         for vertex in g.vertices():
-            vertex.element().draw()  # Draw each Point
+            pt = vertex.element()
+            pt.draw()  # Draw each Point
+            pt.text(f"({pt.x},{pt.y})")  # Show coordinates as text
+
         for edge in g.edges():
             edge.element().draw()  # Draw each Line
 
@@ -59,6 +66,29 @@ def read_graph(graph_name):
         print(f"An unexpected error occurred: {e}")
 
     return g, verts
+
+def BFS(graph, start, discovered):
+    """
+    Perform a breadth-first search (BFS) on the graph starting from the given vertex.
+
+    Parameters:
+    - graph: The graph object.
+    - start: The starting vertex for the BFS.
+    - discovered: A dictionary mapping each discovered vertex to the edge that was used to discover it.
+
+    Returns:
+    - None (discovered is updated in place).
+    """
+    queue = [start]  # Initialize the queue with the starting vertex
+    while queue:
+        current_vertex = queue.pop(0)  # Dequeue a vertex
+        for edge in graph.incident_edges(current_vertex):  # Iterate over all edges connected to the current vertex
+            opposite_vertex = edge.opposite(current_vertex)  # Get the vertex on the other side of the edge
+            if opposite_vertex not in discovered:  # If the vertex has not been discovered yet
+                edge.element().draw(width=3, fill='light green')  # Draw the edge with a growing pixel width
+                discovered[opposite_vertex] = edge  # Mark the edge that discovered this vertex
+                queue.append(opposite_vertex)  # Enqueue the newly discovered vertex
+    return discovered  # Return the discovered dictionary
 
 def DFS(graph, start, discovered,i=5):
     """
@@ -75,7 +105,7 @@ def DFS(graph, start, discovered,i=5):
     for edge in (graph.incident_edges(start)):  # Iterate over all edges connected to the start vertex
         opposite_vertex = edge.opposite(start)  # Get the vertex on the other side of the edge
         if opposite_vertex not in discovered:  # If the vertex has not been discovered yet
-            edge.element().draw(width=grow_pixel(i), fill=get_next_color(int(i*2)))  # Draw the edge with a growing pixel width
+            edge.element().draw(width=3, fill='light green')  # Draw the edge with a growing pixel width
             discovered[opposite_vertex] = edge  # Mark the edge that discovered this vertex
             DFS(graph, opposite_vertex, discovered,i*0.9)  # Recursively explore the vertex
 
@@ -99,21 +129,77 @@ def color_line(graph, start, end):
         print(f"Error: {e}")
         print("The line between the two points could not be colored. Check if the points are connected.")
 
-def main():
-    g,verts = read_graph("week 6/data/graph1.dat") #week 6\data\graph1.dat
+def graph_to_tree(graph, vertex=None,discovered=None):
+    if gtree is None:
+        gtree = PlainTree()
+        position = gtree.add_root([graph, 0])
+    
+    try:
+        for vertex in graph.vertices():
+            if vertex.element() not in gtree.get_children(position):
+                new_position = gtree.add_child(position, [vertex.element(), 0])  # Initially size 0 for dirs
+                graph_to_tree(vertex.element(), gtree, new_position)
+                position.get_element()[1] += new_position.get_element()[1]  # Update directory size after recursion
 
-    discovered = dict()
+def main1():
+    g, verts = read_graph("week 6/data/graph1.dat")
     v = verts[278,454]
-    discovered[v] = None
-    DFS(g,v,discovered)
 
-    color_line(g,verts[520,226],verts[346,145])
+    def clear_and_redraw_base():
+        canvas.delete("all")
+        # Draw all edges in black
+        for edge in g.edges():
+            edge.element().draw(width=3, fill='blue')
+        # Draw all vertices as white dots
+        for vertex in g.vertices():
+            pt = vertex.element()
+            pt.draw(fill='black')
+            pt.text(f"({pt.x},{pt.y})")
+        # Draw starting vertex as a red box
+        pt = v.element()
+        size = 8
+        canvas.create_rectangle(pt.x - size, pt.y - size, pt.x + size, pt.y + size, fill='red', outline='red')
 
-    #draw graph
+    def show_dfs():
+        discovered = dict()
+        discovered[v] = None
+        clear_and_redraw_base()
+        DFS(g, v, discovered)
+        show_canvas()
+
+    def show_bfs():
+        discovered = dict()
+        discovered[v] = None
+        clear_and_redraw_base()
+        BFS(g, v, discovered)
+        show_canvas()
+    
+    def event_show_dfs(event):
+        show_dfs()
+    
+    def event_show_bfs(event):
+        show_bfs()
+
+    def clsoe_window():
+        rootWindow.destroy()
+
+    # Use the rootWindow from graphics.py for buttons
+    button1 = tk.Button(rootWindow, text="DFS", command=show_dfs)
+    button1.pack(padx=5, pady=5,side=tk.RIGHT)
+    button2 = tk.Button(rootWindow, text="BFS", command=show_bfs)
+    button2.pack(padx=5, pady=5,side=tk.RIGHT)
+    button3 = tk.Button(rootWindow, text="Close", command=clsoe_window, bg='gray')
+    button3.pack(padx=5, pady=5,side=tk.LEFT)
+
+    rootWindow.bind("<Right>", event_show_dfs)  # Bind the Enter key to show DFS
+    rootWindow.bind("<Left>", event_show_bfs)  # Bind the Enter key to show BFS
+    rootWindow.bind("<Escape>", lambda e: rootWindow.destroy())  # Bind the Escape key to close the window
     show_canvas()
 
-    # show the result using the following:
-    #mainloop()
+def main():
+    g, verts = read_graph("week 6/data/graph1.dat")
+    v = verts[278,454]
+    FilesTree(g, v)
 
 
 if __name__ == '__main__':
