@@ -15,8 +15,9 @@ from graph import *
 import tkinter as tk
 import sys
 import re
-sys.path.append(r'C:\Users\amirl\\OneDrive\\Documents\\GitHub\\databases-and-algorithms\week_5')
 from plain_tree import PlainTree
+
+import pandas as pd
 
 
 def parse_ints(s):
@@ -24,30 +25,29 @@ def parse_ints(s):
     ints = [int(x) for x in t.split()]
     return ints
 
-def read_graph(graph_name):
+def read_table(graph_name):
     g = Graph()
     verts = dict()
 
     try:
-        with open(graph_name, 'r') as f:
-            lines = f.readlines()
+        df = pd.read_csv(graph_name)
+        #df = df.values  # Convert DataFrame to numpy array, ignoring headers
 
-        # Parse vertices from the first line
-        vertex_coords = parse_ints(lines[0])
-        for i in range(0, len(vertex_coords), 2):
-            x, y = vertex_coords[i], vertex_coords[i + 1]
-            point = Point(x, y)
-            verts[(x, y)] = g.insert_vertex(point)  # Add the Point as a vertex to the graph
+        for i,row in enumerate(df.iterrows()):
+            print(row)
+            y = row[1][0]
+            x = (i+1)
+            point = Point(x*10.5, y*10.5)
+            verts[str(y)] = g.insert_vertex(point)  # Add the Point as a vertex to the graph
 
-        # Parse edges from the second line
-        edge_indices = parse_ints(lines[1])
-        #vertices_list = list(verts.values())  # Get the list of vertices in insertion order
-        for i in range(0, len(edge_indices), 4):
-            v1_idx, v2_idx = (edge_indices[i], edge_indices[i + 1]),(edge_indices[i+2], edge_indices[i + 3])
-            v1 = verts[v1_idx]
-            v2 = verts[v2_idx]
-            edge = Line(v1.element(), v2.element())  # Create a Line using the Points
-            g.insert_edge(v1, v2, edge)  # Add the Line as an edge to the graph
+        for i,row in enumerate(df.iterrows()):
+            if i == 0:
+                continue
+            else:
+                v1 = verts[row[1]['Predecessors']] 
+                v2 = verts[str(row[1][0])]
+                edge = Line(v1.element(), v2.element())  # Create a Line using the Points
+                g.insert_edge(v1, v2, edge)  # Add the Line as an edge to the graph
 
         # Draw the graph
         for vertex in g.vertices():
@@ -142,11 +142,11 @@ def graph_to_tree(graph, vertex=None,discovered=None):
                 position.get_element()[1] += new_position.get_element()[1]  # Update directory size after recursion
     except Exception as e:
         print(f"Error while converting graph to tree: {e}")
-        print("Ensure the graph structure is valid and connected.")
+        print("Ensure the graph structure is valid and all vertices are connected.")
 
-def main1():
-    g, verts = read_graph("week 6/data/graph1.dat")
-    v = verts[278,454]
+def main():
+    g, verts = read_table(r"project\tasks.csv")
+    v = verts['10']
 
     def clear_and_redraw_base():
         canvas.delete("all")
@@ -198,11 +198,6 @@ def main1():
     rootWindow.bind("<Left>", event_show_bfs)  # Bind the Enter key to show BFS
     rootWindow.bind("<Escape>", lambda e: rootWindow.destroy())  # Bind the Escape key to close the window
     show_canvas()
-
-def main():
-    g, verts = read_graph("week 6/data/graph1.dat")
-    v = verts[278,454]
-    FilesTree(g, v)
 
 
 if __name__ == '__main__':
