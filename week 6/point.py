@@ -22,7 +22,7 @@ class Point:
     def draw(self, **kwargs):
         radius = kwargs.pop('radius', 4)
         kwargs.setdefault('width', 0)
-        kwargs.setdefault('fill', 'blue')
+        kwargs.setdefault('fill', 'black')
         kwargs.setdefault('tags', ['POINT'])
         x1 = self.x - radius
         y1 = self.y - radius

@@ -18,14 +18,15 @@ import re
 sys.path.append(r'C:\Users\amirl\\OneDrive\\Documents\\GitHub\\databases-and-algorithms\week_5')
 from plain_tree import PlainTree
 
+kwargs = {}
 
 def parse_ints(s):
     t = re.sub('[(),]', ' ', s)
     ints = [int(x) for x in t.split()]
     return ints
 
-def read_graph(graph_name):
-    g = Graph()
+def read_graph(graph_name,directed=False):
+    g = Graph(directed)
     verts = dict()
 
     try:
@@ -90,7 +91,7 @@ def BFS(graph, start, discovered):
                 queue.append(opposite_vertex)  # Enqueue the newly discovered vertex
     return discovered  # Return the discovered dictionary
 
-def DFS(graph, start, discovered,i=5):
+def DFS(graph, start, discovered,i=5,**kwargs):
     """
     Perform a depth-first search (DFS) on the graph starting from the given vertex.
 
@@ -105,7 +106,7 @@ def DFS(graph, start, discovered,i=5):
     for edge in (graph.incident_edges(start)):  # Iterate over all edges connected to the start vertex
         opposite_vertex = edge.opposite(start)  # Get the vertex on the other side of the edge
         if opposite_vertex not in discovered:  # If the vertex has not been discovered yet
-            edge.element().draw(width=3, fill='light green')  # Draw the edge with a growing pixel width
+            edge.element().draw(**kwargs)  # Draw the edge with a growing pixel width
             discovered[opposite_vertex] = edge  # Mark the edge that discovered this vertex
             DFS(graph, opposite_vertex, discovered,i*0.9)  # Recursively explore the vertex
 
@@ -144,33 +145,35 @@ def graph_to_tree(graph, vertex=None,discovered=None):
         print(f"Error while converting graph to tree: {e}")
         print("Ensure the graph structure is valid and connected.")
 
-def main1():
-    g, verts = read_graph("week 6/data/graph1.dat")
-    v = verts[278,454]
+def main():
+    g, verts = read_graph("week 6/data/graph12.dat",True)
+    v = verts[298,216]
 
     def clear_and_redraw_base():
         canvas.delete("all")
         # Draw all edges in black
         for edge in g.edges():
-            edge.element().draw(width=3, fill='blue')
+            edge.element().draw()
         # Draw all vertices as white dots
         for vertex in g.vertices():
             pt = vertex.element()
-            pt.draw(fill='black')
+            kwargs.pop('arrow', 1)
+            kwargs.pop('arrowshape',1)
+            pt.draw()
             pt.text(f"({pt.x},{pt.y})")
         # Draw starting vertex as a red box
         pt = v.element()
         size = 8
         canvas.create_rectangle(pt.x - size, pt.y - size, pt.x + size, pt.y + size, fill='red', outline='red')
 
-    def show_dfs():
+    def show_dfs(**kwargs):
         discovered = dict()
         discovered[v] = None
         clear_and_redraw_base()
-        DFS(g, v, discovered)
+        DFS(g, v, discovered,**kwargs)
         show_canvas()
 
-    def show_bfs():
+    def show_bfs(**kwargs):
         discovered = dict()
         discovered[v] = None
         clear_and_redraw_base()
@@ -178,16 +181,20 @@ def main1():
         show_canvas()
     
     def event_show_dfs(event):
-        show_dfs()
+        show_dfs(**kwargs)
     
     def event_show_bfs(event):
-        show_bfs()
+        show_bfs(**kwargs)
 
     def clsoe_window():
         rootWindow.destroy()
-
+    
+    if g.is_directed():
+        kwargs.setdefault('arrow', 'last')
+        kwargs.setdefault('arrowshape', [6,15,5])
+    kwargs.setdefault('fill', 'light green')
     # Use the rootWindow from graphics.py for buttons
-    button1 = tk.Button(rootWindow, text="DFS", command=show_dfs)
+    button1 = tk.Button(rootWindow, text="DFS", command=lambda: show_dfs(**kwargs))
     button1.pack(padx=5, pady=5,side=tk.RIGHT)
     button2 = tk.Button(rootWindow, text="BFS", command=show_bfs)
     button2.pack(padx=5, pady=5,side=tk.RIGHT)
@@ -199,10 +206,10 @@ def main1():
     rootWindow.bind("<Escape>", lambda e: rootWindow.destroy())  # Bind the Escape key to close the window
     show_canvas()
 
-def main():
-    g, verts = read_graph("week 6/data/graph1.dat")
+def main2():
+    g, verts = read_graph("week 6/data/graph12.dat")
     v = verts[278,454]
-    FilesTree(g, v)
+    #FilesTree(g, v)
 
 
 if __name__ == '__main__':

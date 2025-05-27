@@ -16,9 +16,9 @@ except NameError:
     rootWindow = tkinter.Tk()
     rootWindow.wm_title("main window")
     rootWindow.resizable(width=True, height=True)
-    rootFrame = tkinter.Frame(rootWindow, width=1820, height=900, bg="white")
+    rootFrame = tkinter.Frame(rootWindow, width=1820, height=970, bg="white")
     rootFrame.pack()
-    canvas = tkinter.Canvas(rootFrame, width=1800, height=800, bg="white")
+    canvas = tkinter.Canvas(rootFrame, width=1800, height=970, bg="white")
     canvas.pack()
 
 

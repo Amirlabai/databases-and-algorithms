@@ -26,28 +26,39 @@ def parse_ints(s):
     return ints
 
 def read_table(graph_name):
-    g = Graph()
+    g = Graph(True)
     verts = dict()
-
+    running_days = 0
+    predecessor = '0'  # Initialize predecessor to None
     try:
-        df = pd.read_csv(graph_name)
+        df = pd.read_csv(graph_name, encoding='utf-8')  # Read the CSV file into a DataFrame
         #df = df.values  # Convert DataFrame to numpy array, ignoring headers
 
         for i,row in enumerate(df.iterrows()):
-            print(row)
-            y = row[1][0]
+            leangth = int(row[1]['Duration'].split(' ')[0])
+            if predecessor != row[1]['Predecessors']:
+                predecessor = row[1]['Predecessors']
+                running_days += leangth
+            print(f"Row {i}: {row[1]['Tid']} - Duration: {leangth}")
+            print(f"predeccsor for {row[1]['Tid']}: {row[1]['Predecessors']} - running time: {running_days}")
+            y = row[1]['Tid']
             x = (i+1)
-            point = Point(x*10.5, y*10.5)
+            if i == 0:
+                point = Point(30, y+30)  # Skip the header row
+            else:
+                point = Point(running_days*10+30, y*17+30)
             verts[str(y)] = g.insert_vertex(point)  # Add the Point as a vertex to the graph
 
         for i,row in enumerate(df.iterrows()):
             if i == 0:
                 continue
             else:
-                v1 = verts[row[1]['Predecessors']] 
-                v2 = verts[str(row[1][0])]
-                edge = Line(v1.element(), v2.element())  # Create a Line using the Points
-                g.insert_edge(v1, v2, edge)  # Add the Line as an edge to the graph
+                for j in row[1]['Predecessors'].split(','):
+                    v1 = verts[j] 
+                    v2 = verts[str(row[1][0])]
+ 
+                    edge = Line(v1.element(), v2.element())  # Create a Line using the Points
+                    g.insert_edge(v1, v2, edge)  # Add the Line as an edge to the graph
 
         # Draw the graph
         for vertex in g.vertices():
@@ -146,7 +157,7 @@ def graph_to_tree(graph, vertex=None,discovered=None):
 
 def main():
     g, verts = read_table(r"project\tasks.csv")
-    v = verts['10']
+    v = verts['1']
 
     def clear_and_redraw_base():
         canvas.delete("all")
