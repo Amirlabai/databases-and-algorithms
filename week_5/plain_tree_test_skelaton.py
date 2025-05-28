@@ -1,6 +1,8 @@
 from plain_tree import PlainTree
 import os
 
+IMPORT_PATH = ""
+
 
 def test1():
     t = PlainTree()
@@ -95,11 +97,13 @@ def FilesTree(dir, ftree=None, position=None):
 
 
 if __name__ == "__main__":
+
+    from config import IMPORT_PATH
     #test1()
     #test2()
     #ftree = FilesTree("c:/Windows")
     #print ftree
-    ftree= FilesTree("C:\\Users\\amirl\\Documents\\Education\\סמסטר ו'") #C:\Users\amirl\Documents\Education\סמסטר ו'\0.אספקה\הרצאות
+    ftree= FilesTree(IMPORT_PATH) #C:\Users\amirl\Documents\Education\סמסטר ו'\0.אספקה\הרצאות
     print(ftree)
     #sum_tree(ftree,ftree.get_root())
     #Print_Sizes(ftree)

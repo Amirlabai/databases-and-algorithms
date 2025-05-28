@@ -15,8 +15,10 @@ from graph import *
 import tkinter as tk
 import sys
 import re
-sys.path.append(r'C:\Users\amirl\\OneDrive\\Documents\\GitHub\\databases-and-algorithms\week_5')
+import config
+sys.path.append(config.WEEK_5_PATH)
 from plain_tree import PlainTree
+
 
 kwargs = {}
 
