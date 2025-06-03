@@ -13,6 +13,7 @@ from point import Point
 from line import Line
 from graph import *
 import tkinter as tk
+import numpy as np
 import sys
 import re
 from plain_tree import PlainTree
@@ -168,7 +169,7 @@ def main():
         for vertex in g.vertices():
             pt = vertex.element()
             pt.draw(fill='black')
-            pt.text(f"({pt.x},{pt.y})")
+            pt.text(f"{pt.x},{pt.y})")
         # Draw starting vertex as a red box
         pt = v.element()
         size = 8
