@@ -47,7 +47,7 @@ def read_table(graph_name):
             if i == 0:
                 point = Point(30, y+30)  # Skip the header row
             else:
-                point = Point(running_days*10+30, y*17+30)
+                point = Point(running_days*50+100, y*200+100)
             verts[str(y)] = g.insert_vertex(point)  # Add the Point as a vertex to the graph
 
         for i,row in enumerate(df.iterrows()):

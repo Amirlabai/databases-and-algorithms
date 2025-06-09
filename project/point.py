@@ -3,14 +3,14 @@
 #  Point Class  #
 #               #
 #################
-print("in eda.point")
+#print("in eda.point")
 from graphics import *
-print(rootWindow)
+#print(rootWindow)
 
 
 class Point:
     "Create an object of type Point from two integers"
-    def __init__(self,x,y):
+    def __init__(self,x,y,node_date = None):
         self.x = x
         self.y = y
 
