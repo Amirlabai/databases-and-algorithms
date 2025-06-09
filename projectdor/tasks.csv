@@ -1,0 +1,55 @@
+﻿Tid,Task Name,Duration,Predecessors,workers
+1,Start order,0 days,,
+2,drilling,4 days,1,"{'worker':2, 'eng':1}"
+3,OSB placement,2 days,2,{'worker':2}
+4,Floor iron and electricity,5 days,2,{'worker':2}
+5,Eng approval,2 days,4,{'worker':2}
+6,Floor cement,1 day,5,"{'worker':3, 'eng':1}"
+7,Walls and Mamad,4 days,6,{'worker':5}
+8,Windos open,2 days,7,{'worker':5}
+9,Wall closing,3 days,8,{'worker':5}
+10,Mamad walls and electricity preparation,7 days,7,{'worker':4}
+11,Walls 3.05,1 day,10,"{'worker':3, 'eng':1}"
+12,Second floor preparation,3 days,11,{'worker':2}
+13,Ceiling iron,2 days,12,{'worker':3}
+14,Electricity preparation,2 days,13,{'worker':4}
+15,Eng approval,1 day,14,{'eng':1}
+16,Second floor cement,1 day,15,"{'worker':3, 'eng':1}"
+17,Second floor walls,5 days,16,{'worker':2}
+18,Blocks,3 days,17,{'worker':2}
+19,Cement approval,1 day,18,{'worker':2}
+20,Wall cement,2 days,19,{'eng':1}
+21,Second floor walls,6 days,20,{'worker':6}
+22,AC preparations,3 days,21,{'worker':6}
+23,Eng approval,2 days,22,{'eng':1}
+24,Service floor cement,3 days,22,{'worker':6}
+25,External walls,3 days,22,{'worker':6}
+26,First floor ceiling dismental,4 days,22,{'worker':6}
+27,Second floor ceiling dismental,3 days,17,{'worker':6}
+28,General cleaning,4 days,"24,25",{'worker':6}
+29,First block,3 days,27,{'worker':6}
+30,First floor blocks,3 days,29,{'eng':1}
+31,Electricity marking with family,3 days,30,{'worker':5}
+32,Door preparation,10 days,"25,29",{'worker':5}
+33,Second floor-first block,4 days,32,{'worker':5}
+34,Second floor-walls,23 days,32,{'worker':5}
+35,Electricity marking2,7 days,"32,33","{'worker':3, 'eng':1}"
+36,Sanitary preparations,2 days,32,{'worker':4}
+37,Sanitary preparations second floor,4 days,33,{'worker':4}
+38,Plaster internal,3 days,37,{'worker':6}
+39,Roof placement,2 days,"38,40",{'worker':2}
+40,Insulation,2 days,38,"{'worker':2, 'eng':1}"
+41,Wood galery,3 days,"39,40",{'worker':2}
+42,Roof finish,4 days,"39,40",{'worker':2}
+43,External plaster,2 days,"39,40",{'worker':2}
+44,Balcony insulation,4 days,43,{'worker':2}
+45,Internal plaster finishing,5 days,38,{'worker':2}
+46,flooring,14 days,"44,43","{'worker':3, 'eng':1}"
+47,Plastering,10 days,45,{'eng':1}
+48,Paint 1 hand,1 day,46,"{'worker':2, 'eng':1}"
+49,External plaster,2 days,47,{'worker':2}
+50,Aluminum installation,2 days,"49,48",{'worker':2}
+51,pergola,5 days,49,{'worker':2}
+52,Rails,2 days,50,{'worker':1}
+53,External development,14 days,51,{'worker':2}
+54,Delivery,0 days,"50,51,52,53",{'eng':1}
