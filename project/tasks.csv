@@ -32,7 +32,7 @@
 31,Electricity marking with family,3 days,30,{'worker':5}
 32,Door preparation,10 days,"25,29",{'worker':5}
 33,Second floor-first block,4 days,32,{'worker':5}
-34,"Second floor-walls""",23 days,32,{'worker':5}
+34,Second floor-walls,23 days,32,{'worker':5}
 35,Electricity marking2,7 days,"32,33","{'worker':3, 'eng':1}"
 36,Sanitary preparations,2 days,32,{'worker':4}
 37,Sanitary preparations second floor,4 days,33,{'worker':4}
