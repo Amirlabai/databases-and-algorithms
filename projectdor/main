@@ -1,0 +1,165 @@
+import csv
+import math
+from graph import Graph
+from point import Point
+from line import Line
+from graphics import show_canvas
+
+# הגדרות מגבלות משאבים
+MAX_WORKERS = 4
+MAX_ENGINEERS = 1
+
+# ------------------------------
+# שלב 1: קריאת משימות + חישוב משך בפועל
+# ------------------------------
+def parse_tasks(filename):
+    tasks = {}
+    with open(filename, newline='', encoding='utf-8-sig') as csvfile:
+        reader = csv.DictReader(csvfile)
+        reader.fieldnames = [name.strip().lstrip('\ufeff') for name in reader.fieldnames]
+
+        for row in reader:
+            tid = int(row['Tid'])
+            duration = int(row['Duration'].split()[0]) if row['Duration'].strip() else 0
+
+            # פירוק מילון משאבים מהתא
+            resource_str = row.get('workers') or "{}"
+            try:
+                res_dict = eval(resource_str) if isinstance(resource_str, str) else {}
+            except:
+                res_dict = {}
+
+            workers = int(res_dict.get('worker', 0))
+            engineers = int(res_dict.get('eng', 0))
+
+            predecessors = [
+                int(x.strip()) for x in row.get('Predecessors', '').split(',')
+                if x.strip().isdigit()
+            ]
+
+            total_worker_days = workers * duration
+            total_engineer_days = engineers * duration
+
+            actual_worker_days = math.ceil(total_worker_days / MAX_WORKERS) if MAX_WORKERS > 0 else float('inf')
+            actual_engineer_days = math.ceil(total_engineer_days / MAX_ENGINEERS) if MAX_ENGINEERS > 0 else float('inf')
+
+            actual_duration = max(actual_worker_days, actual_engineer_days)
+
+            tasks[tid] = {
+                'name': row['Task Name'],
+                'duration': duration,
+                'actual_duration': actual_duration,
+                'workers': workers,
+                'engineers': engineers,
+                'predecessors': predecessors
+            }
+    return tasks
+
+# ------------------------------
+# שלב 2: בניית גרף התלויות
+# ------------------------------
+def build_task_graph(tasks):
+    g = Graph(directed=True)
+    vertex_map = {}
+    for tid in tasks:
+        vertex_map[tid] = g.insert_vertex(tid)
+    for tid, data in tasks.items():
+        for pred in data['predecessors']:
+            g.insert_edge(vertex_map[pred], vertex_map[tid])
+    return g, vertex_map
+
+# ------------------------------
+# שלב 3: חישוב שכבות (רמות)
+# ------------------------------
+def compute_levels(g):
+    in_degree = {v: 0 for v in g.vertices()}
+    for e in g.edges():
+        _, v = e.endpoints()
+        in_degree[v] += 1
+
+    level_map = {}
+    queue = [v for v in g.vertices() if in_degree[v] == 0]
+    for v in queue:
+        level_map[v] = 0
+
+    while queue:
+        u = queue.pop(0)
+        curr_level = level_map[u]
+        for e in g.incident_edges(u):
+            _, v = e.endpoints()
+            in_degree[v] -= 1
+            if in_degree[v] == 0:
+                level_map[v] = curr_level + 1
+                queue.append(v)
+
+    return level_map
+
+# ------------------------------
+# שלב 4: חישוב יום התחלה לכל משימה
+# ------------------------------
+def compute_start_days(g, tasks):
+    in_degree = {v: 0 for v in g.vertices()}
+    for e in g.edges():
+        _, v = e.endpoints()
+        in_degree[v] += 1
+
+    start_days = {v: 0 for v in g.vertices()}
+    queue = [v for v in g.vertices() if in_degree[v] == 0]
+
+    while queue:
+        u = queue.pop(0)
+        u_end_day = start_days[u] + tasks[u.element()]['actual_duration']
+
+        for e in g.incident_edges(u):
+            _, v = e.endpoints()
+            in_degree[v] -= 1
+            start_days[v] = max(start_days[v], u_end_day)
+            if in_degree[v] == 0:
+                queue.append(v)
+
+    return start_days
+
+# ------------------------------
+# שלב 5: ציור הגרף
+# ------------------------------
+def draw_graph(g, vertex_map, tasks, level_map, start_days):
+    level_to_nodes = {}
+    for v, lvl in level_map.items():
+        level_to_nodes.setdefault(lvl, []).append(v)
+
+    point_map = {}
+    x_spacing = 300
+    y_spacing = 150
+    x_offset = 100
+    y_offset = 400
+
+    for level, nodes in level_to_nodes.items():
+        for i, v in enumerate(nodes):
+            x = x_offset + level * x_spacing
+            y = y_offset + i * y_spacing
+            p = Point(x, y)
+            p.draw()
+            task_data = tasks[v.element()]
+            name = task_data['name']
+            planned = task_data['duration']
+            actual = task_data['actual_duration']
+            start_day = start_days[v]
+            label = f"{name}\nיום: {start_day}\nמתוכנן: {planned} ימים\nבפועל: {actual} ימים"
+            p.text(label, dy=-15, anchor='s', font='Helvetica 20', fill='black')
+            point_map[v] = p
+
+    for e in g.edges():
+        u, v = e.endpoints()
+        Line(point_map[u], point_map[v]).draw()
+
+# ------------------------------
+# שלב 6: הרצה
+# ------------------------------
+if __name__ == "_main_":
+    print("Loading tasks...")
+    tasks = parse_tasks("tasks.csv")
+    g, vertex_map = build_task_graph(tasks)
+    level_map = compute_levels(g)
+    start_days = compute_start_days(g, tasks)
+    draw_graph(g, vertex_map, tasks, level_map, start_days)
+    show_canvas()
