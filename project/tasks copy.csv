@@ -1,0 +1,11 @@
+﻿Tid,Task Name,Duration,Predecessors,workers
+1,Start order,0 days,,
+2,drilling,4 days,1,"{'worker':2, 'eng':1}"
+3,OSB placement,2 days,2,{'worker':2}
+4,Floor iron and electricity,5 days,2,{'worker':2}
+5,Eng approval,2 days,4,{'worker':2}
+6,Floor cement,1 day,5,"{'worker':3, 'eng':1}"
+7,Walls and Mamad,4 days,6,{'worker':5}
+8,Windos open,2 days,7,{'worker':5}
+9,Wall closing,3 days,8,{'worker':5}
+10,Mamad walls and electricity preparation,7 days,7,{'worker':4}

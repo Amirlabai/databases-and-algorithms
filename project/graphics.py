@@ -31,7 +31,7 @@ except NameError:
     canvas = tkinter.Canvas(
         rootFrame,
         bg="white",
-        scrollregion=(0, 0, 10000, 20000),  # ← אפשר לשנות לפי גודל העץ שלך
+        scrollregion=(0, 0, 17000, 6000),  # ← אפשר לשנות לפי גודל העץ שלך
         xscrollcommand=x_scrollbar.set,
         yscrollcommand=y_scrollbar.set
     )

@@ -33,6 +33,18 @@ class Vertex:
 
     def __hash__(self):         # will allow vertex to be a map/set key
         return hash(id(self))
+    
+    def __repr__(self):
+        """Return a developer-friendly string representation of the Vertex."""
+        # Get the task object stored inside this vertex
+        task = self.element()
+        
+        # Check if the element is a Task object with an ID and name
+        if hasattr(task, 'id') and hasattr(task, 'name'):
+            return f"<Vertex(Task ID: {task.id}, Name: '{task.name}')>"
+        else:
+            # Fallback for vertices that might not hold a Task
+            return f"<Vertex({repr(task)})>"
 
     def __str__(self):
         return str(self._element)

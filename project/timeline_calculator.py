@@ -7,7 +7,7 @@ import pandas as pd
 from graph import Graph, Vertex, Edge # Assuming graph.py is in the same directory or project path
 
 # 1. Define the project start date
-PROJECT_START_DATE = datetime.date(2025, 6, 30)
+PROJECT_START_DATE = datetime.date(2022, 5, 9)
 
 # 2. Implement a function parse_worker_costs(filepath)
 def parse_worker_costs(filepath: str) -> tuple[dict[str, int], dict[str, int]]:
@@ -50,6 +50,7 @@ def parse_tasks(filepath: str) -> list[dict]:
     tasks_list = []
     try:
         df = pd.read_csv(filepath, encoding='utf-8-sig')
+        df = df[:6]
         for row in df.itertuples(index=False):
             try:
                 task_id = int(row.Tid)
@@ -235,7 +236,7 @@ def schedule_tasks_forward_pass(
             if can_allocate_resources:
                 task_to_schedule.es = current_date
                 duration_in_days = int(math.ceil(task_to_schedule.actual_duration))
-                ef_date = current_date if duration_in_days == 0 else current_date + datetime.timedelta(days=duration_in_days - 1)
+                ef_date = current_date if duration_in_days == 0 else current_date + datetime.timedelta(days=duration_in_days)
                 active_tasks_details[task_to_schedule.id] = {
                     'task_obj': task_to_schedule, 'ef_date': ef_date,
                     'workers_used': copy.deepcopy(task_to_schedule.assigned_workers_map)}
@@ -259,72 +260,120 @@ def schedule_tasks_forward_pass(
 
 # Backward Pass Scheduling Logic (Graph Aware)
 def schedule_tasks_backward_pass(
-    task_objects_with_ef: list[Task], # Should be tasks from the graph, processed by forward pass
-    project_start_date: datetime.date,
-    task_graph: Graph, # The task dependency graph
-    vertex_map: dict[int, Vertex] # Maps task.id to Vertex object for tasks in the graph
+    task_objects_with_ef: list[Task],  # Should be tasks from the graph, processed by forward pass
+    task_graph: 'Graph',              # The task dependency graph
+    vertex_map: dict[int, 'Vertex']   # Maps task.id to Vertex object for tasks in the graph
 ) -> list[Task]:
     """
-    Calculates LS, LF, and Slack for tasks after ES/EF have been determined, using the graph.
-    Modifies task objects in task_objects_with_ef (which should be graph tasks) in-place.
+    Calculates Late Start (LS), Late Finish (LF), and Slack for tasks using a backward pass.
+
+    This function operates on tasks that have already had their Early Start (ES) and
+    Early Finish (EF) calculated. It iteratively processes tasks backwards from the
+    project end date, propagating timing constraints through the dependency graph
+    until all LS and LF values have converged.
+
+    Args:
+        task_objects_with_ef: A list of Task objects, updated with ES and EF.
+        task_graph: The dependency graph of the tasks.
+        vertex_map: A dictionary mapping task IDs to their corresponding graph Vertex.
+
+    Returns:
+        The same list of Task objects, now updated in-place with LS, LF, and Slack.
     """
     scheduled_tasks = [t for t in task_objects_with_ef if t.es is not None and t.ef is not None]
 
-    if not scheduled_tasks: 
-        return task_objects_with_ef 
+    if not scheduled_tasks:
+        return task_objects_with_ef
 
-    project_finish_date = max(task.ef for task in scheduled_tasks) if scheduled_tasks else project_start_date
-    
-    for task in task_objects_with_ef: 
-        task.lf = None; task.ls = None; task.slack = None
+    # The project's late finish is the latest of all early finish times.
+    project_finish_date = max(task.ef for task in scheduled_tasks)
 
-    for _ in range(len(scheduled_tasks) + 1): 
+    # Initialize LS, LF, and Slack to None for a clean calculation.
+    for task in scheduled_tasks:
+        task.lf = None
+        task.ls = None
+        task.slack = None
+
+    # Iteratively calculate LF and LS until the values stabilize.
+    # This handles complex graphs where a simple reverse-sort isn't sufficient.
+    MAX_ITERATIONS = len(scheduled_tasks) + 1
+    for i in range(MAX_ITERATIONS):
         changed_in_iteration = False
-        for task in sorted(scheduled_tasks, key=lambda t: t.ef if t.ef is not None else datetime.date.min, reverse=True): 
-            new_lf = None
+
+        # Sort by Early Finish (desc) as a heuristic to process tasks closer to the end first.
+        for task in sorted(scheduled_tasks, key=lambda t: t.ef, reverse=True):
             task_vertex = vertex_map.get(task.id)
-            
+            #task_vertex = task_graph.vertices(task_vertex)
+
             if not task_vertex:
-                # This task was scheduled but isn't in the vertex_map.
-                # This implies task_objects_with_ef might contain non-graph tasks if called incorrectly.
-                # However, it should only contain tasks that were part of the graph simulation.
-                print(f"Warning: Task {task.id} ('{task.name}') was scheduled but not in vertex_map for backward pass. Skipping.")
+                print(f"Warning: Task {task.id} ('{task.name}') was scheduled but not in vertex_map. Skipping.")
                 continue
 
+            # Find all successor tasks in the dependency graph.
             graph_successors = []
             for edge in task_graph.incident_edges(task_vertex, outgoing=True):
                 successor_vertex = edge.opposite(task_vertex)
                 successor_task_object = successor_vertex.element()
-                # Successor must be one of the *scheduled* tasks to influence LF
-                if successor_task_object in scheduled_tasks: 
-                    graph_successors.append(successor_task_object)
-            
-            if not graph_successors: 
+                # Successor must be part of the scheduled set to be considered.
+                if successor_task_object.ls is not None or successor_task_object.ef is not None:
+                     graph_successors.append(successor_task_object)
+
+
+            # Determine the new Late Finish (LF) for the current task.
+            new_lf = None
+            if not graph_successors:
+                # If a task has no successors, its Late Finish is the project finish date.
                 new_lf = project_finish_date
             else:
-                # Successors exist, ensure all their LS are calculated before calculating this task's LF
-                if all(s_task.ls is not None for s_task in graph_successors):
-                    new_lf = min(s_task.ls for s_task in graph_successors)
-                else: 
-                    # Not all successors have LS yet, skip this task in this iteration pass
-                    continue 
-            
-            if new_lf is not None and task.lf != new_lf: 
-                task.lf = new_lf; changed_in_iteration = True
-            
-            if task.lf is not None: # If LF is set, calculate LS
-                duration_days = int(math.ceil(task.actual_duration)) 
-                new_ls = task.lf if duration_days == 0 else task.lf - datetime.timedelta(days=duration_days - 1)
-                if task.ls != new_ls: 
-                    task.ls = new_ls; changed_in_iteration = True
-                if task.ls is not None and task.es is not None: # If LS and ES are set, calculate Slack
+                # A task's LF is the minimum of its successors' Late Starts (LS).
+                # This can only be calculated if *all* successors have a calculated LS.
+                if all(s.ls is not None for s in graph_successors):
+                    new_lf = min(s.ls for s in graph_successors)
+                # else: we must wait for a future iteration when successors' LS are known.
+
+            # If a new, valid LF was calculated, update the task.
+            if new_lf is not None and task.lf != new_lf:
+                task.lf = new_lf
+                changed_in_iteration = True
+
+            # If the task's LF is set, we can now calculate its LS and Slack.
+            if task.lf is not None:
+                # Calculate LS
+                # The duration requires ceiling to handle partial days.
+                duration_days = int(math.ceil(task.actual_duration))
+                
+                # BUG FIX: Corrected date arithmetic. A 1-day task ending today must start today.
+                # LS = LF - (Duration - 1 day).
+                new_ls = task.lf - datetime.timedelta(days=max(0, duration_days - 1))
+
+                if task.ls != new_ls:
+                    task.ls = new_ls
+                    changed_in_iteration = True
+
+                # Calculate Slack (Total Float) if possible
+                if task.ls is not None and task.es is not None:
                     new_slack = task.ls - task.es
-                    if task.slack != new_slack: 
+                    if task.slack != new_slack:
                         task.slack = new_slack
-                        # change_in_iteration is primarily for LF/LS convergence; slack is derivative.
-        
-        if not changed_in_iteration and _ > 0: 
+                        # Note: A change in slack doesn't mean the core LF/LS values are unstable,
+                        # so we don't set changed_in_iteration = True here.
+
+        # If a full pass over all tasks results in no changes, the values have converged.
+        if not changed_in_iteration and i > 0:
             break
+            
+    # Final safety check for any tasks that couldn't be processed (e.g., disconnected graph components)
+    for task in scheduled_tasks:
+        if task.lf is None:
+            # Fallback: A task that could not be processed (e.g. part of a cycle or disconnected)
+            # is treated as a leaf node. This is a common strategy.
+            task.lf = project_finish_date
+            duration_days = int(math.ceil(task.actual_duration))
+            task.ls = task.lf - datetime.timedelta(days=max(0, duration_days - 1))
+            if task.es:
+                task.slack = task.ls - task.es
+
+
     return task_objects_with_ef
 
 # Task Cost Calculation Logic
@@ -393,8 +442,7 @@ def topological_sort_kahn(graph: Graph, vertex_map: dict[int, Vertex]) -> list[T
 def export_timeline_to_csv(task_objects: list[Task], filepath: str):
     report_data = []
     report_columns = ['Tid', 'Task Name', 'Actual Duration (days)', 'Start Date (ES)', 'End Date (EF)', 
-                      'Late Start (LS)', 'Late Finish (LF)', 'Assigned Workers', 'Slack (days)', 
-                      'Cost', 'Status', 'Notes']
+                    'Slack (days)', 'Cost']
     sorted_tasks_for_export = sorted(task_objects, key=lambda t: t.id)
     for task in sorted_tasks_for_export:
         cost_val = task.cost if task.cost is not None else 0.0
@@ -402,16 +450,70 @@ def export_timeline_to_csv(task_objects: list[Task], filepath: str):
             'Tid': task.id, 'Task Name': task.name,
             'Actual Duration (days)': format_duration_days(task.actual_duration),
             'Start Date (ES)': format_date(task.es), 'End Date (EF)': format_date(task.ef),
-            'Late Start (LS)': format_date(task.ls), 'Late Finish (LF)': format_date(task.lf),
-            'Assigned Workers': format_workers(task.assigned_workers_map),
             'Slack (days)': format_duration_days(task.slack),
-            'Cost': f"{cost_val:.2f}", 'Status': task.status,
-            'Notes': task.notes if task.notes else ""
+            'Cost': f"{cost_val:.2f}"
         })
     try:
         pd.DataFrame(report_data, columns=report_columns).to_csv(filepath, index=False, encoding='utf-8-sig')
         print(f"\nTimeline report successfully exported to {filepath}")
     except Exception as e: print(f"\nError exporting timeline to CSV at {filepath}: {e}")
+
+def auto_connect_parallel_leaves_with_map(
+    task_graph: 'Graph', 
+    task_vertex_map: dict[int, 'Vertex']
+) -> tuple['Graph', dict[int, 'Vertex']]:
+    """
+    Finds leaf nodes and connects them to their parallel sibling's successor.
+    This version is fully compatible with your provided Graph class.
+    """
+    all_vertices = list(task_vertex_map.values())
+    
+    # 1. Find all leaf nodes first
+    # *** CORRECTION HERE ***
+    # Changed task_graph.out_degree(v) to task_graph.degree(v, outgoing=True)
+    # to match the method name in your Graph class.
+    leaf_vertices = [v for v in all_vertices if task_graph.degree(v, outgoing=True) == 0]
+    
+    print(f"DEBUG: Found {len(leaf_vertices)} initial leaf vertices.")
+
+    for leaf in leaf_vertices:
+        leaf_task = leaf.element()
+        
+        predecessors = [edge.opposite(leaf) for edge in task_graph.incident_edges(leaf, outgoing=False)]
+        
+        if not predecessors:
+            continue
+            
+        primary_predecessor = predecessors[0]
+
+        siblings_and_self = [
+            edge.opposite(primary_predecessor) 
+            for edge in task_graph.incident_edges(primary_predecessor, outgoing=True)
+        ]
+
+        target_successor = None
+        sibling_donor = None
+        for sibling in siblings_and_self:
+            if sibling == leaf:
+                continue
+
+            # *** CORRECTION HERE *** (and here as well)
+            if task_graph.degree(sibling, outgoing=True) > 0:
+                sibling_successors = [
+                    edge.opposite(sibling) 
+                    for edge in task_graph.incident_edges(sibling, outgoing=True)
+                ]
+                target_successor = sibling_successors[0]
+                sibling_donor = sibling
+                break
+
+        if target_successor:
+            print(f"INFO: Auto-connecting leaf '{leaf_task.name}' "
+                  f"to '{target_successor.element().name}' "
+                  f"(borrowed from sibling '{sibling_donor.element().name}').")
+            task_graph.insert_edge(leaf, target_successor)
+
+    return task_graph, task_vertex_map
 
 # Helper functions for formatting output
 def format_date(date_obj):
@@ -432,28 +534,10 @@ def format_duration_days(duration_val, unit="days"):
 if __name__ == "__main__":
     print(f"Project Start Date: {format_date(PROJECT_START_DATE)}")
     worker_costs_filepath = 'project/worker_costs.csv'
-    try: open(worker_costs_filepath, 'r').close() 
-    except FileNotFoundError: print(f"Creating dummy {worker_costs_filepath} for testing.")
-    """with open(worker_costs_filepath, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f); writer.writerow(['WorkerType', 'Availability', 'DailyCost'])
-        writer.writerows([['engineer', '5', '100'], ['designer', '2', '120'], ['manager', '1', '200'], ['tester', '0', '90']])"""
+    open(worker_costs_filepath, 'r').close() 
     tasks_filepath = 'project/tasks.csv'
-    try: open(tasks_filepath, 'r').close()
-    except FileNotFoundError: print(f"Creating dummy {tasks_filepath} for testing.")
-    """with open(tasks_filepath, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f); writer.writerow(['id', 'name', 'base_duration', 'predecessors', 'required_workers'])
-        writer.writerows([
-            ['1', 'Initial Planning', '5 days', '', "{'manager': 1}"],
-            ['2', 'Design Phase', '10 days', '1', "{'designer': 2, 'engineer': 1}"],
-            ['3', 'Development Sprint 1', '15 days', '2', "{'engineer': 3}"],
-            ['4', 'Testing R1 (needs many eng)', '7 days', '3', "{'engineer': 6, 'designer':1}"],
-            ['5', 'Deployment', '3 days', '4', "{'manager': 1, 'engineer': 1}"],
-            ['6', 'Documentation (needs tester)', '5 days', '3', "{'tester': 1}"],
-            ['7', 'Final Review (no specific worker needed)', '2 days', '5,6', "{}"],
-            ['8', 'UX Review (0 designers req)', '3 days', '2', "{'designer': 0, 'manager':1}"],
-            ['9', 'Parallel Task A', '5 days', '1', "{'engineer': 1}"],
-            ['10', 'Parallel Task B', '5 days', '1', "{'engineer': 1}"]
-        ])"""
+    open(tasks_filepath, 'r').close()
+
     print("\n--- Parsing Worker Costs ---")
     availability, daily_costs = parse_worker_costs(worker_costs_filepath)
     if availability and daily_costs: print("Worker Availability:", availability)
@@ -474,6 +558,8 @@ if __name__ == "__main__":
         print("\n--- Building Task Dependency Graph ---")
         task_graph, task_vertex_map = build_task_graph(initial_task_objects) 
         
+        task_graph, task_vertex_map = auto_connect_parallel_leaves_with_map(task_graph, task_vertex_map)
+
         topologically_sorted_tasks_elements = None # Ensure defined
         if task_graph and task_vertex_map:
             print(f"Task graph built. Vertices: {task_graph.vertex_count()}, Edges: {task_graph.edge_count()}")
@@ -485,7 +571,7 @@ if __name__ == "__main__":
             else: print("Could not perform topological sort (cycle detected or other graph issue).")
 
             if task_graph.vertex_count() > 0:
-                schedulable_tasks_for_sim_dict = {tid: copy.deepcopy(vtx.element()) for tid, vtx in task_vertex_map.items()}
+                schedulable_tasks_for_sim_dict = {tid: vtx.element() for tid, vtx in task_vertex_map.items()}
                 schedulable_tasks_for_sim_list = list(schedulable_tasks_for_sim_dict.values())
 
                 print("\n--- Scheduling Tasks (Forward Pass) ---")
@@ -493,10 +579,28 @@ if __name__ == "__main__":
                     schedulable_tasks_for_sim_list, copy.deepcopy(availability), PROJECT_START_DATE,
                     task_graph, task_vertex_map, topologically_sorted_tasks_elements)
                 
+                # --- START DEBUGGING BLOCK ---
+                # Pick one sample task that you know is in both the list and the graph
+                sample_task_from_list = schedulable_tasks_for_sim_list[0]
+                sample_vertex_from_map = task_vertex_map[sample_task_from_list.id]
+                sample_task_from_graph = sample_vertex_from_map.element()
+
+                print(f"--- OBJECT IDENTITY CHECK ---")
+                print(f"Task from list: '{sample_task_from_list.name}', ES: {sample_task_from_list.es}")
+                print(f"Task from graph: '{sample_task_from_graph.name}', ES: {sample_task_from_graph.es}")
+
+                # The id() function gives the memory address of an object.
+                # If they are the same object, the IDs will be identical.
+                are_they_the_same_object = (id(sample_task_from_list) == id(sample_task_from_graph))
+                
+                print(f"\nAre they the same object in memory? -> {are_they_the_same_object}")
+                if not are_they_the_same_object:
+                    print("\n>>> BUG CONFIRMED: The forward pass updated copies, not the original tasks in the graph!")
+                # --- END DEBUGGING BLOCK ---
+                
                 print("\n--- Scheduling Tasks (Backward Pass) ---")
                 schedule_tasks_backward_pass(
                     schedulable_tasks_for_sim_list, 
-                    PROJECT_START_DATE,
                     task_graph,      # Added task_graph
                     task_vertex_map  # Added task_vertex_map
                 ) 
@@ -512,19 +616,21 @@ if __name__ == "__main__":
     else: print("\nSkipping calculations and scheduling due to parsing errors or missing data.")
 
     print("\n--- Project Timeline & Task Details ---")
-    header = (f"{'ID':<4} {'Task Name':<30} {'Duration':<10} {'Start (ES)':<12} {'End (EF)':<12} "
+    header = (f"{'ID':<4} {'Task Name':<40} {'Duration':<10} {'Start (ES)':<12} {'End (EF)':<12} "
               f"{'Late Start (LS)':<15} {'Late Finish (LF)':<15} {'Assigned Workers':<30} "
               f"{'Slack':<10} {'Cost':<10} {'Status':<15} {'Notes'}")
-    print(header); print("-" * (len(header) + 20))
+    print(header); print("-" * (len(header) + 10))
     if final_tasks_to_report:
+        clean_report = []
         total_project_cost = 0.0
         actual_project_finish_date = PROJECT_START_DATE 
-        sorted_tasks_for_report = sorted(final_tasks_to_report, key=lambda t: t.id)
-        for task in sorted_tasks_for_report: 
+        sorted_tasks_for_report = sorted(final_tasks_to_report, key=lambda t: t.es)
+        for i,task in enumerate(sorted_tasks_for_report): 
+            
             if task.status not in ['pending', 'error_cycle_dependency'] and task.ef is not None and task.ef > actual_project_finish_date :
                 actual_project_finish_date = task.ef
             if task.cost is not None: total_project_cost += task.cost
-            print(f"{task.id:<4} {task.name:<30} {format_duration_days(task.actual_duration):<10} {format_date(task.es):<12} {format_date(task.ef):<12} "
+            print(f"{task.id:<4} {task.name:<40} {format_duration_days(task.actual_duration):<10} {format_date(task.es):<12} {format_date(task.ef):<12} "
                   f"{format_date(task.ls):<15} {format_date(task.lf):<15} {format_workers(task.assigned_workers_map):<30} "
                   f"{format_duration_days(task.slack):<10} {f'{task.cost:.2f}':<10} {task.status:<15} {task.notes if task.notes else ''}")
         finish_date_str = format_date(actual_project_finish_date) if actual_project_finish_date != PROJECT_START_DATE or any(t.ef for t in sorted_tasks_for_report if t.ef is not None) else "N/A (No tasks scheduled)"

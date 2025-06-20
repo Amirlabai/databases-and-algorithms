@@ -185,7 +185,7 @@ def dijkstra(g,src):
         cloud[u] = key
         del pqlocator[u]
         for e in g.incident_edges(u):
-            v = e.oppsite(u)
+            v = e.opposite(u)
             if v not in cloud:
                 wgt = e.element()
                 if d[u] + wgt < d[v]:
@@ -194,10 +194,6 @@ def dijkstra(g,src):
                     pq.update_priorty(pqlocator[v],d[v],v)
 
     return cloud
-
-    
-    
-
 
 
 if __name__ == "__main__":

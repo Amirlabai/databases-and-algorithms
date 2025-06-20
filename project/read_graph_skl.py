@@ -20,7 +20,12 @@ from plain_tree import PlainTree
 
 import pandas as pd
 
-
+def remove_brackets(word:str):
+    if '{' in word:
+        word = word.replace('{','')
+    if '}' in word:
+        word = word.replace('}','')
+    return word
 def parse_ints(s):
     t = re.sub('[(),]', ' ', s)
     ints = [int(x) for x in t.split()]
@@ -37,6 +42,29 @@ def read_table(graph_name):
 
         for i,row in enumerate(df.iterrows()):
             leangth = int(row[1]['Duration'].split(' ')[0])
+            workers = str(row[1]['workers'])
+            eng = 0
+            workers = remove_brackets(workers)
+            if "eng" in workers and "worker" in workers:
+                workers_list = workers.split(',')
+                eng = int(workers_list[1].split(':')[1])
+                workers = int(workers_list[0].split(':')[1])
+            elif "worker" in workers:
+                workers = int(workers.split(':')[1])
+            elif "eng" in workers:
+                eng = int(workers.split(':')[1])
+                workers = 0
+            else:
+                workers = 0
+            
+            if workers>4 or eng>1:
+                leangth = int((leangth*workers)/4) + 1
+            elif workers>4:
+                leangth = int((leangth*workers)/4) + 1
+            elif eng>1:
+                leangth = int((leangth*workers)/4) + 1
+
+            print(f"number of workers: {workers} and eng: {eng}")
             if predecessor != row[1]['Predecessors']:
                 predecessor = row[1]['Predecessors']
                 running_days += leangth
@@ -45,9 +73,9 @@ def read_table(graph_name):
             y = row[1]['Tid']
             x = (i+1)
             if i == 0:
-                point = Point(30, y+30)  # Skip the header row
+                point = Point(0, y)  # Skip the header row
             else:
-                point = Point(running_days*50+100, y*200+100)
+                point = Point((running_days)*100, y*100)
             verts[str(y)] = g.insert_vertex(point)  # Add the Point as a vertex to the graph
 
         for i,row in enumerate(df.iterrows()):
