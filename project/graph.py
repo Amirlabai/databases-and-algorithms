@@ -85,9 +85,18 @@ class Edge:
 
     def __hash__(self):         # will allow edge to be a map/set key
         return hash( (self._origin, self._destination) )
+    
+    def __repr__(self):
+        """Return a developer-friendly string representation of the edge."""
+        # This format clearly shows the class and its essential components.
+        # It relies on the __repr__ of the Vertex and element objects.
+        return f"Edge(origin={repr(self._origin)}, destination={repr(self._destination)}, element={repr(self._element)})"
 
     def __str__(self):
-        return '({0},{1},{2})'.format(self._origin,self._destination,self._element)
+        """Return a user-friendly string representation of the edge."""
+        # This provides a more compact, readable format for end-users.
+        return '({0} -> {1}, element: {2})'.format(self._origin, self._destination, self._element)
+
 
 
 class Graph:
@@ -101,6 +110,27 @@ class Graph:
         self._outgoing = {}
         # only create second map for directed graph; use alias for undirected
         self._incoming = {} if directed else self._outgoing
+
+    def __repr__(self):
+        """Return a developer-friendly string representation of the Graph."""
+        # Determine if the graph is directed or undirected for the string output
+        graph_type = "Directed" if self.is_directed() else "Undirected"
+        
+        # Get counts for vertices and edges
+        num_vertices = self.vertex_count()
+        num_edges = self.edge_count()
+        
+        # Get string representations of vertices and edges
+        # We use repr() on each item to get their detailed representation
+        vertices_str = ", ".join(repr(v) for v in self.vertices())
+        edges_str = ", ".join(repr(e) for e in self.edges())
+
+        # Combine everything into a clear, multi-line representation
+        return (
+            f"<{graph_type} Graph with {num_vertices} vertices and {num_edges} edges>\n"
+            f"  Vertices: {vertices_str}\n"
+            f"  Edges: {edges_str}"
+        )
 
     def _validate_vertex(self, v):
         """Verify that v is a Vertex of this graph."""

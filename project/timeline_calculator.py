@@ -50,7 +50,7 @@ def parse_tasks(filepath: str) -> list[dict]:
     tasks_list = []
     try:
         df = pd.read_csv(filepath, encoding='utf-8-sig')
-        df = df[:6]
+        #df = df[:15]
         for row in df.itertuples(index=False):
             try:
                 task_id = int(row.Tid)
@@ -93,7 +93,7 @@ def parse_tasks(filepath: str) -> list[dict]:
     except Exception as e_file:
         print(f"An unexpected error occurred while parsing {filepath} with pandas: {e_file}")
         return []
-    return tasks_list
+    return df,tasks_list
 
 # Task Class Definition
 class Task:
@@ -114,12 +114,12 @@ class Task:
         self.status = 'pending'
         self.notes = ""
     def __repr__(self):
-        return (f"Task(id={self.id}, name='{self.name}', base_duration={self.base_duration}, "
-                f"actual_duration={self.actual_duration}, status='{self.status}', "
-                f"assigned_workers_map={self.assigned_workers_map}, notes='{self.notes}')")
+        return (f"Task(id={self.id}, name='{self.name}',Early start={self.es}, Early finish={self.ef}, base_duration={self.base_duration}, "
+                f"actual_duration={self.actual_duration}, predeccsor='{self.predecessors}', "
+                f"assigned_workers_map={format_workers(self.assigned_workers_map)})")
 
 # Initial Calculation Function
-def calculate_task_initial_values(task_dict_list, worker_availability, worker_daily_costs) -> list[Task]:
+def calculate_task_initial_values(task_dict_list, worker_availability) -> list[Task]:
     task_objects = []
     for task_data in task_dict_list:
         task = Task(**task_data) 
@@ -258,123 +258,119 @@ def schedule_tasks_forward_pass(
         else: current_date += datetime.timedelta(days=1)
     return tasks_in_graph
 
-# Backward Pass Scheduling Logic (Graph Aware)
-def schedule_tasks_backward_pass(
-    task_objects_with_ef: list[Task],  # Should be tasks from the graph, processed by forward pass
-    task_graph: 'Graph',              # The task dependency graph
-    vertex_map: dict[int, 'Vertex']   # Maps task.id to Vertex object for tasks in the graph
+def schedule_tasks_custom_backward_pass(
+    task_objects_with_ef: list[Task],
+    task_graph: 'Graph',
+    vertex_map: dict[int, 'Vertex']
 ) -> list[Task]:
     """
-    Calculates Late Start (LS), Late Finish (LF), and Slack for tasks using a backward pass.
+    Calculates LF, LS, and Slack using a custom heuristic.
 
-    This function operates on tasks that have already had their Early Start (ES) and
-    Early Finish (EF) calculated. It iteratively processes tasks backwards from the
-    project end date, propagating timing constraints through the dependency graph
-    until all LS and LF values have converged.
-
-    Args:
-        task_objects_with_ef: A list of Task objects, updated with ES and EF.
-        task_graph: The dependency graph of the tasks.
-        vertex_map: A dictionary mapping task IDs to their corresponding graph Vertex.
-
-    Returns:
-        The same list of Task objects, now updated in-place with LS, LF, and Slack.
+    - Rule 1: If a task has predecessors, successors, and no siblings, its LF is its EF.
+    - Rule 2: Otherwise, its LF is the latest EF among its siblings and cousins.
+    
+    This function should be called after the forward pass is complete.
     """
-    scheduled_tasks = [t for t in task_objects_with_ef if t.es is not None and t.ef is not None]
+    if not task_objects_with_ef:
+        return []
 
-    if not scheduled_tasks:
-        return task_objects_with_ef
+    # Determine the project's overall finish date as a fallback.
+    project_finish_date = max(
+        (task.ef for task in task_objects_with_ef if task.ef is not None),
+        default=PROJECT_START_DATE
+    )
 
-    # The project's late finish is the latest of all early finish times.
-    project_finish_date = max(task.ef for task in scheduled_tasks)
+    # First, calculate Late Finish (LF) for all tasks based on the custom rules.
+    for task in task_objects_with_ef:
+        # Skip tasks that couldn't be scheduled in the forward pass.
+        if task.status != 'completed' or task.ef is None:
+            continue
 
-    # Initialize LS, LF, and Slack to None for a clean calculation.
-    for task in scheduled_tasks:
-        task.lf = None
-        task.ls = None
-        task.slack = None
+        task_vertex = vertex_map.get(task.id)
+        if not task_vertex:
+            continue
 
-    # Iteratively calculate LF and LS until the values stabilize.
-    # This handles complex graphs where a simple reverse-sort isn't sufficient.
-    MAX_ITERATIONS = len(scheduled_tasks) + 1
-    for i in range(MAX_ITERATIONS):
-        changed_in_iteration = False
-
-        # Sort by Early Finish (desc) as a heuristic to process tasks closer to the end first.
-        for task in sorted(scheduled_tasks, key=lambda t: t.ef, reverse=True):
-            task_vertex = vertex_map.get(task.id)
-            #task_vertex = task_graph.vertices(task_vertex)
-
-            if not task_vertex:
-                print(f"Warning: Task {task.id} ('{task.name}') was scheduled but not in vertex_map. Skipping.")
-                continue
-
-            # Find all successor tasks in the dependency graph.
-            graph_successors = []
-            for edge in task_graph.incident_edges(task_vertex, outgoing=True):
-                successor_vertex = edge.opposite(task_vertex)
-                successor_task_object = successor_vertex.element()
-                # Successor must be part of the scheduled set to be considered.
-                if successor_task_object.ls is not None or successor_task_object.ef is not None:
-                     graph_successors.append(successor_task_object)
-
-
-            # Determine the new Late Finish (LF) for the current task.
-            new_lf = None
-            if not graph_successors:
-                # If a task has no successors, its Late Finish is the project finish date.
-                new_lf = project_finish_date
-            else:
-                # A task's LF is the minimum of its successors' Late Starts (LS).
-                # This can only be calculated if *all* successors have a calculated LS.
-                if all(s.ls is not None for s in graph_successors):
-                    new_lf = min(s.ls for s in graph_successors)
-                # else: we must wait for a future iteration when successors' LS are known.
-
-            # If a new, valid LF was calculated, update the task.
-            if new_lf is not None and task.lf != new_lf:
-                task.lf = new_lf
-                changed_in_iteration = True
-
-            # If the task's LF is set, we can now calculate its LS and Slack.
-            if task.lf is not None:
-                # Calculate LS
-                # The duration requires ceiling to handle partial days.
-                duration_days = int(math.ceil(task.actual_duration))
-                
-                # BUG FIX: Corrected date arithmetic. A 1-day task ending today must start today.
-                # LS = LF - (Duration - 1 day).
-                new_ls = task.lf - datetime.timedelta(days=max(0, duration_days - 1))
-
-                if task.ls != new_ls:
-                    task.ls = new_ls
-                    changed_in_iteration = True
-
-                # Calculate Slack (Total Float) if possible
-                if task.ls is not None and task.es is not None:
-                    new_slack = task.ls - task.es
-                    if task.slack != new_slack:
-                        task.slack = new_slack
-                        # Note: A change in slack doesn't mean the core LF/LS values are unstable,
-                        # so we don't set changed_in_iteration = True here.
-
-        # If a full pass over all tasks results in no changes, the values have converged.
-        if not changed_in_iteration and i > 0:
-            break
+        # Check conditions for Rule 1.
+        has_predecessors = task_graph.degree(task_vertex, outgoing=False) > 0
+        has_successors = task_graph.degree(task_vertex, outgoing=True) > 0
+        
+        parents = {edge.opposite(task_vertex) for edge in task_graph.incident_edges(task_vertex, outgoing=False)}
+        has_siblings = any(task_graph.degree(p, outgoing=True) > 1 for p in parents)
+        base = task.base_duration
+        actual = task.actual_duration
+        # Apply Rule 1: A task in a simple chain is considered "critical."
+        if (has_predecessors and has_successors) or base < actual or base == 0:
+            task.lf = task.ef
+        else:
+            # Apply Rule 2: Find LF from relatives' Early Finish times.
+            siblings, cousins = _find_relatives(task_vertex, task_graph)
+            relatives = siblings.union(cousins)
             
-    # Final safety check for any tasks that couldn't be processed (e.g., disconnected graph components)
-    for task in scheduled_tasks:
-        if task.lf is None:
-            # Fallback: A task that could not be processed (e.g. part of a cycle or disconnected)
-            # is treated as a leaf node. This is a common strategy.
-            task.lf = project_finish_date
-            duration_days = int(math.ceil(task.actual_duration))
-            task.ls = task.lf - datetime.timedelta(days=max(0, duration_days - 1))
-            if task.es:
-                task.slack = task.ls - task.es
+            if relatives:
+                latest_relative_ef = max(
+                    (r.ef for r in relatives if r.ef is not None),
+                    default=None
+                )
+                # Set LF to the latest EF of relatives, or use project finish as fallback.
+                task.lf = latest_relative_ef if latest_relative_ef is not None else project_finish_date
+            else:
+                # If no relatives, the task's LF is the project finish date.
+                task.lf = project_finish_date
 
+    # Second, calculate Late Start (LS) and Slack for all tasks based on their new LF.
+    for task in task_objects_with_ef:
+        if task.lf is not None:
+            duration_days = int(math.ceil(task.actual_duration))
+            task.ls = task.lf - datetime.timedelta(days=max(0, duration_days))
+            
+            if task.es is not None:
+                task.slack = (task.ls - task.es).days
 
     return task_objects_with_ef
+
+def _find_relatives(task_vertex: 'Vertex', task_graph: 'Graph') -> tuple[set, set]:
+    """
+    Finds all sibling and cousin tasks for a given task vertex in the graph.
+
+    - Siblings are other tasks that share the same parent (predecessor).
+    - Cousins are tasks whose parents are siblings of the given task's parent.
+
+    Args:
+        task_vertex: The vertex of the task to find relatives for.
+        task_graph: The project's dependency graph.
+
+    Returns:
+        A tuple containing a set of sibling Task objects and a set of cousin Task objects.
+    """
+    siblings = set()
+    cousins = set()
+    
+    # 1. Find Siblings
+    # A sibling shares the same parent.
+    parents = {edge.opposite(task_vertex) for edge in task_graph.incident_edges(task_vertex, outgoing=False)}
+    for parent_v in parents:
+        for sibling_edge in task_graph.incident_edges(parent_v, outgoing=True):
+            sibling_v = sibling_edge.opposite(parent_v)
+            if sibling_v != task_vertex:
+                siblings.add(sibling_v.element())
+
+    # 2. Find Cousins
+    # A cousin's parent is a sibling of this task's parent.
+    grandparents = {edge.opposite(p) for p in parents for edge in task_graph.incident_edges(p, outgoing=False)}
+    
+    aunts_uncles = set()
+    for gp_v in grandparents:
+        for uncle_edge in task_graph.incident_edges(gp_v, outgoing=True):
+            uncle_v = uncle_edge.opposite(gp_v)
+            if uncle_v not in parents:
+                aunts_uncles.add(uncle_v)
+
+    for uncle_v in aunts_uncles:
+        for cousin_edge in task_graph.incident_edges(uncle_v, outgoing=True):
+            cousin_v = cousin_edge.opposite(uncle_v)
+            cousins.add(cousin_v.element())
+            
+    return siblings, cousins
 
 # Task Cost Calculation Logic
 def calculate_task_costs(task_objects, worker_daily_costs) -> list[Task]:
@@ -404,7 +400,7 @@ def build_task_graph(task_objects: list[Task]) -> tuple[Graph | None, dict[int, 
             if pred_id in vertex_map:
                 v_predecessor = vertex_map[pred_id]
                 if not task_dependency_graph.get_edge(v_predecessor, v_successor):
-                     task_dependency_graph.insert_edge(v_predecessor, v_successor, None)
+                     task_dependency_graph.insert_edge(v_predecessor, v_successor, v_predecessor._element.base_duration)
             else:
                 original_pred_task_exists = any(t.id == pred_id for t in task_objects)
                 if original_pred_task_exists:
@@ -413,7 +409,7 @@ def build_task_graph(task_objects: list[Task]) -> tuple[Graph | None, dict[int, 
                      print(f"Warning: Predecessor ID {pred_id} for task {task.id} ('{task.name}') not found. Edge not created.")
     return task_dependency_graph, vertex_map
 
-def topological_sort_kahn(graph: Graph, vertex_map: dict[int, Vertex]) -> list[Task] | None:
+def topological_sort_kahn(graph: Graph) -> list[Task] | None:
     if not graph or not graph.vertices(): return []
     in_degree = {v: 0 for v in graph.vertices()}
     for edge in graph.edges():
@@ -458,59 +454,114 @@ def export_timeline_to_csv(task_objects: list[Task], filepath: str):
         print(f"\nTimeline report successfully exported to {filepath}")
     except Exception as e: print(f"\nError exporting timeline to CSV at {filepath}: {e}")
 
-def auto_connect_parallel_leaves_with_map(
+# This helper function is still needed for the fallback strategy
+def _find_ancestry_edges(
+    leaf: 'Vertex', 
+    task_graph: 'Graph'
+) -> set['Edge']:
+    """
+    Performs a backward traversal (reverse BFS) from a leaf to find all
+    edges that are part of its ancestral path.
+    """
+    ancestry_edges = set()
+    queue = [leaf]
+    visited = {leaf}
+    
+    while queue:
+        current_vertex = queue.pop(0)
+        
+        # Find all edges coming into the current vertex
+        for edge in task_graph.incident_edges(current_vertex, outgoing=False):
+            ancestry_edges.add(edge)
+            predecessor = edge.opposite(current_vertex)
+            if predecessor not in visited:
+                visited.add(predecessor)
+                queue.append(predecessor)
+                
+    return ancestry_edges
+
+def auto_connect_parallel_leaves_by_max_weight(
     task_graph: 'Graph', 
     task_vertex_map: dict[int, 'Vertex']
 ) -> tuple['Graph', dict[int, 'Vertex']]:
     """
-    Finds leaf nodes and connects them to their parallel sibling's successor.
-    This version is fully compatible with your provided Graph class.
+    Finds leaf nodes and connects them to a successor using a hybrid strategy.
+
+    1.  **Primary Strategy (Local Search):** If a leaf has immediate siblings
+        (other children of the same parent), it will only look at the outgoing
+        edges from those siblings to find the highest-weight connection.
+
+    2.  **Fallback Strategy (Global Search):** If a leaf is a "single child"
+        (has no immediate siblings), it will look for the highest-weight edge
+        anywhere in the graph, excluding its own ancestral path.
+        
+    This version assumes the 'element' of an edge is its weight.
     """
     all_vertices = list(task_vertex_map.values())
-    
-    # 1. Find all leaf nodes first
-    # *** CORRECTION HERE ***
-    # Changed task_graph.out_degree(v) to task_graph.degree(v, outgoing=True)
-    # to match the method name in your Graph class.
     leaf_vertices = [v for v in all_vertices if task_graph.degree(v, outgoing=True) == 0]
     
+    if not leaf_vertices:
+        return task_graph, task_vertex_map
+        
     print(f"DEBUG: Found {len(leaf_vertices)} initial leaf vertices.")
+
+    all_graph_edges = list(task_graph.edges())
 
     for leaf in leaf_vertices:
         leaf_task = leaf.element()
-        
-        predecessors = [edge.opposite(leaf) for edge in task_graph.incident_edges(leaf, outgoing=False)]
-        
-        if not predecessors:
-            continue
+        max_weight_edge = None
+
+        # --- HYBRID LOGIC: First, check for immediate siblings ---
+        predecessors = list(task_graph.incident_edges(leaf, outgoing=False))
+        has_siblings = False
+
+        if predecessors:
+            # For simplicity, we check siblings from the first parent found.
+            # In a tree structure, there will only be one.
+            parent = predecessors[0].opposite(leaf)
+            parent_successors = list(task_graph.incident_edges(parent, outgoing=True))
             
-        primary_predecessor = predecessors[0]
+            if len(parent_successors) > 1:
+                has_siblings = True
+                siblings = [edge.opposite(parent) for edge in parent_successors if edge.opposite(parent) != leaf]
+                
+                # --- PRIMARY STRATEGY (Local Sibling Search) ---
+                print(f"INFO: Leaf '{leaf_task.name}' has siblings. Using local search.")
+                for sibling in siblings:
+                    # Don't learn from other leaves
+                    if task_graph.degree(sibling, outgoing=True) == 0:
+                        continue
+                    
+                    # Examine the sibling's outgoing edges
+                    for edge in task_graph.incident_edges(sibling, outgoing=True):
+                        if edge.element() is not None:
+                            if max_weight_edge is None or edge.element() > max_weight_edge.element():
+                                max_weight_edge = edge
 
-        siblings_and_self = [
-            edge.opposite(primary_predecessor) 
-            for edge in task_graph.incident_edges(primary_predecessor, outgoing=True)
-        ]
+        if not has_siblings:
+            # --- FALLBACK STRATEGY (Global Ancestry-Based Search) ---
+            print(f"INFO: Leaf '{leaf_task.name}' has no siblings. Using graph-wide search.")
+            ancestry_edges = _find_ancestry_edges(leaf, task_graph)
 
-        target_successor = None
-        sibling_donor = None
-        for sibling in siblings_and_self:
-            if sibling == leaf:
-                continue
+            for edge in all_graph_edges:
+                if edge in ancestry_edges:
+                    continue  # Skip edges from the leaf's own history
 
-            # *** CORRECTION HERE *** (and here as well)
-            if task_graph.degree(sibling, outgoing=True) > 0:
-                sibling_successors = [
-                    edge.opposite(sibling) 
-                    for edge in task_graph.incident_edges(sibling, outgoing=True)
-                ]
-                target_successor = sibling_successors[0]
-                sibling_donor = sibling
-                break
-
-        if target_successor:
+                if edge.element() is not None:
+                    if max_weight_edge is None or edge.element() > max_weight_edge.element():
+                        max_weight_edge = edge
+        
+        # --- CONNECTION LOGIC (Applies to the result of either strategy) ---
+        if max_weight_edge:
+            target_successor = max_weight_edge.endpoints()[1]
+            donor_source = max_weight_edge.endpoints()[0]
+            
             print(f"INFO: Auto-connecting leaf '{leaf_task.name}' "
                   f"to '{target_successor.element().name}' "
-                  f"(borrowed from sibling '{sibling_donor.element().name}').")
+                  f"(from donor edge '{donor_source.element().name}'->"
+                  f"'{target_successor.element().name}' with "
+                  f"highest-weight: {max_weight_edge.element()}).")
+            
             task_graph.insert_edge(leaf, target_successor)
 
     return task_graph, task_vertex_map
@@ -529,7 +580,9 @@ def format_duration_days(duration_val, unit="days"):
         if duration_val == float('inf'): return "Infinite"
         return f"{int(round(duration_val))} {unit}"
     return "N/A"
-
+def print_task_objects(task_objects):
+    for task in task_objects:
+        print(task)
 # Main execution block
 if __name__ == "__main__":
     print(f"Project Start Date: {format_date(PROJECT_START_DATE)}")
@@ -542,75 +595,57 @@ if __name__ == "__main__":
     availability, daily_costs = parse_worker_costs(worker_costs_filepath)
     if availability and daily_costs: print("Worker Availability:", availability)
     print("\n--- Parsing Tasks (as Dictionaries) ---")
-    tasks_list_dicts = parse_tasks(tasks_filepath)
+    df,tasks_list_dicts = parse_tasks(tasks_filepath)
     if tasks_list_dicts: print(f"Total tasks parsed from CSV: {len(tasks_list_dicts)}")
     else: tasks_list_dicts = []
     final_tasks_to_report = [] # Initialize to ensure it's defined
 
     if tasks_list_dicts and availability:
         print("\n--- Calculating Initial Task Values (Creating Task Objects) ---")
-        initial_task_objects = calculate_task_initial_values(tasks_list_dicts, availability, daily_costs)
-        if initial_task_objects: print(f"Total Task objects created: {len(initial_task_objects)}")
-        else: initial_task_objects = [] # Ensure it's a list
+        all_task_objects = calculate_task_initial_values(tasks_list_dicts, availability)
+        print_task_objects(all_task_objects)
         
-        final_tasks_to_report = copy.deepcopy(initial_task_objects) 
-
         print("\n--- Building Task Dependency Graph ---")
-        task_graph, task_vertex_map = build_task_graph(initial_task_objects) 
+        # Pass the original list to build the graph. It will filter out impossible tasks.
+        task_graph, task_vertex_map = build_task_graph(all_task_objects) 
         
-        task_graph, task_vertex_map = auto_connect_parallel_leaves_with_map(task_graph, task_vertex_map)
+        #task_graph, task_vertex_map = auto_connect_parallel_leaves_by_max_weight(task_graph, task_vertex_map)
 
         topologically_sorted_tasks_elements = None # Ensure defined
         if task_graph and task_vertex_map:
             print(f"Task graph built. Vertices: {task_graph.vertex_count()}, Edges: {task_graph.edge_count()}")
             print("\n--- Performing Topological Sort (Kahn's Algorithm) ---")
-            topologically_sorted_tasks_elements = topological_sort_kahn(task_graph, task_vertex_map)
+            topologically_sorted_tasks_elements = topological_sort_kahn(task_graph)
             if topologically_sorted_tasks_elements is not None:
                 print("Topological Sort Order (Task ID, Name):")
                 for task_obj in topologically_sorted_tasks_elements: print(f"  - {task_obj.id}, {task_obj.name}")
             else: print("Could not perform topological sort (cycle detected or other graph issue).")
 
             if task_graph.vertex_count() > 0:
-                schedulable_tasks_for_sim_dict = {tid: vtx.element() for tid, vtx in task_vertex_map.items()}
-                schedulable_tasks_for_sim_list = list(schedulable_tasks_for_sim_dict.values())
+                schedulable_tasks_list = [v.element() for v in task_graph.vertices()]
 
                 print("\n--- Scheduling Tasks (Forward Pass) ---")
                 schedule_tasks_forward_pass(
-                    schedulable_tasks_for_sim_list, copy.deepcopy(availability), PROJECT_START_DATE,
+                    schedulable_tasks_list, copy.deepcopy(availability), PROJECT_START_DATE,
                     task_graph, task_vertex_map, topologically_sorted_tasks_elements)
                 
-                # --- START DEBUGGING BLOCK ---
-                # Pick one sample task that you know is in both the list and the graph
-                sample_task_from_list = schedulable_tasks_for_sim_list[0]
-                sample_vertex_from_map = task_vertex_map[sample_task_from_list.id]
-                sample_task_from_graph = sample_vertex_from_map.element()
-
-                print(f"--- OBJECT IDENTITY CHECK ---")
-                print(f"Task from list: '{sample_task_from_list.name}', ES: {sample_task_from_list.es}")
-                print(f"Task from graph: '{sample_task_from_graph.name}', ES: {sample_task_from_graph.es}")
-
-                # The id() function gives the memory address of an object.
-                # If they are the same object, the IDs will be identical.
-                are_they_the_same_object = (id(sample_task_from_list) == id(sample_task_from_graph))
-                
-                print(f"\nAre they the same object in memory? -> {are_they_the_same_object}")
-                if not are_they_the_same_object:
-                    print("\n>>> BUG CONFIRMED: The forward pass updated copies, not the original tasks in the graph!")
-                # --- END DEBUGGING BLOCK ---
-                
                 print("\n--- Scheduling Tasks (Backward Pass) ---")
-                schedule_tasks_backward_pass(
-                    schedulable_tasks_for_sim_list, 
+                schedule_tasks_custom_backward_pass(
+                    schedulable_tasks_list, 
                     task_graph,      # Added task_graph
                     task_vertex_map  # Added task_vertex_map
                 ) 
                 
                 print("\n--- Calculating Task Costs ---")
-                calculate_task_costs(schedulable_tasks_for_sim_list, daily_costs)
+                calculate_task_costs(schedulable_tasks_list, daily_costs)
 
-                for i, task_in_report in enumerate(final_tasks_to_report):
-                    if task_in_report.id in schedulable_tasks_for_sim_dict: 
-                        final_tasks_to_report[i] = schedulable_tasks_for_sim_dict[task_in_report.id]
+                # --- CONSOLIDATE FINAL REPORT ---
+                # Create a dictionary of the fully processed, schedulable tasks for easy lookup.
+                processed_tasks_dict = {task.id: task for task in schedulable_tasks_list}
+
+                final_tasks_to_report = [
+                                        processed_tasks_dict.get(task.id, task) for task in all_task_objects
+                                        ]
             else: print("No schedulable tasks in the graph to simulate.")
         else: print("Task graph could not be built or is empty. Skipping simulation.")
     else: print("\nSkipping calculations and scheduling due to parsing errors or missing data.")
