@@ -224,7 +224,7 @@ def schedule_tasks_forward_pass(
             if graph_predecessor_task_elements:
                 for pred_task_obj in graph_predecessor_task_elements:
                     processed_pred_task = tasks_map.get(pred_task_obj.id)
-                    if not processed_pred_task or processed_pred_task.status != 'completed' or not (processed_pred_task.ef < current_date):
+                    if not processed_pred_task or processed_pred_task.status != 'completed' or not (processed_pred_task.ef <= current_date):
                         all_graph_preds_completed_and_finished = False; break
             if not all_graph_preds_completed_and_finished: continue
             can_allocate_resources = True
@@ -255,7 +255,7 @@ def schedule_tasks_forward_pass(
                     tasks_map[task.id].notes += "Scheduling deadlock detected; "
                     tasks_map[task.id].status = "error_deadlock"
             break 
-        else: current_date += datetime.timedelta(days=1)
+        else: pass#current_date += datetime.timedelta(days=1)
     return tasks_in_graph
 
 def schedule_tasks_custom_backward_pass(
