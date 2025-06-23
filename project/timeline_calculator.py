@@ -1,10 +1,10 @@
 import csv
 import datetime
 import math
-import ast # For safely evaluating string representations of dicts
-import copy # For deep copying worker pool
+import ast
+import copy
 import pandas as pd
-from graph import Graph, Vertex, Edge # Assuming graph.py is in the same directory or project path
+from graph import Graph, Vertex, Edge
 
 # 1. Define the project start date
 PROJECT_START_DATE = datetime.date(2022, 5, 9)
