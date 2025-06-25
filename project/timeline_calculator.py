@@ -1,4 +1,4 @@
-import csv
+import os
 import datetime
 import math
 import ast
@@ -7,7 +7,8 @@ import pandas as pd
 from graph import Graph, Vertex, Edge
 
 # 1. Define the project start date
-PROJECT_START_DATE = datetime.date(2022, 5, 9)
+PROJECT_START_DATE = None
+PROJECT_PATH = os.path.dirname(os.path.abspath(__file__))
 
 # 2. Implement a function parse_worker_costs(filepath)
 def parse_worker_costs(filepath: str) -> tuple[dict[str, int], dict[str, int]]:
@@ -57,7 +58,8 @@ def parse_tasks(filepath: str) -> list[dict]:
                 name = str(row._1)
                 base_duration_str = str(row.Duration)
                 if 'days' not in base_duration_str.lower():
-                     print(f"Warning: 'base_duration' for task {task_id} ('{name}') is missing 'days': '{base_duration_str}'. Assuming value is days.")
+                    pass
+                     #print(f"Warning: 'base_duration' for task {task_id} ('{name}') is missing 'days': '{base_duration_str}'. Assuming value is days.")
                 base_duration = int(base_duration_str.split()[0])
                 
                 predecessors_str = str(row.Predecessors)
@@ -570,9 +572,11 @@ def auto_connect_parallel_leaves_by_max_weight(
 def format_date(date_obj):
     if date_obj is None: return "N/A"
     return date_obj.strftime("%d/%m/%Y")
+
 def format_workers(workers_map):
     if not workers_map: return "None"
     return ', '.join([f"{k}:{v}" for k, v in workers_map.items()])
+
 def format_duration_days(duration_val, unit="days"):
     if duration_val is None: return "N/A"
     if isinstance(duration_val, datetime.timedelta): return f"{duration_val.days} {unit}"
@@ -580,63 +584,65 @@ def format_duration_days(duration_val, unit="days"):
         if duration_val == float('inf'): return "Infinite"
         return f"{int(round(duration_val))} {unit}"
     return "N/A"
-def print_task_objects(task_objects):
-    for task in task_objects:
-        print(task)
+
 # Main execution block
 if __name__ == "__main__":
-    print(f"Project Start Date: {format_date(PROJECT_START_DATE)}")
-    worker_costs_filepath = 'project/worker_costs.csv'
+    user_input = ""
+    execute = False
+    while not execute:
+        user_input = input("Project Start Date (d/m/yyyy|Press Enter for Today's Date): ") or datetime.datetime.today().strftime('%d/%m/%Y')
+        try:
+        # 1. Parse the string using datetime.strptime()
+        # %d = day, %m = month, %Y = 4-digit year
+        # This returns a datetime object.
+            date_obj = datetime.datetime.strptime(user_input, "%d/%m/%Y")
+        
+        # 2. Extract just the date part (if you don't need time)
+            PROJECT_START_DATE = date_obj.date()
+        
+        # 3. Set execute to True to exit the loop on success
+            execute = True
+
+        except ValueError:
+            # Catches errors if the input doesn't match the format
+            print("Invalid date format. Please use d/m/yyyy and try again.")
+    
+    worker_costs_filepath = os.path.join(PROJECT_PATH,'worker_costs.csv')
     open(worker_costs_filepath, 'r').close() 
-    tasks_filepath = 'project/tasks.csv'
+    tasks_filepath = os.path.join(PROJECT_PATH,'tasks.csv')
     open(tasks_filepath, 'r').close()
 
-    print("\n--- Parsing Worker Costs ---")
     availability, daily_costs = parse_worker_costs(worker_costs_filepath)
-    if availability and daily_costs: print("Worker Availability:", availability)
-    print("\n--- Parsing Tasks (as Dictionaries) ---")
+    
     df,tasks_list_dicts = parse_tasks(tasks_filepath)
-    if tasks_list_dicts: print(f"Total tasks parsed from CSV: {len(tasks_list_dicts)}")
-    else: tasks_list_dicts = []
+    if not tasks_list_dicts: tasks_list_dicts = []
     final_tasks_to_report = [] # Initialize to ensure it's defined
 
     if tasks_list_dicts and availability:
-        print("\n--- Calculating Initial Task Values (Creating Task Objects) ---")
         all_task_objects = calculate_task_initial_values(tasks_list_dicts, availability)
-        print_task_objects(all_task_objects)
         
-        print("\n--- Building Task Dependency Graph ---")
         # Pass the original list to build the graph. It will filter out impossible tasks.
         task_graph, task_vertex_map = build_task_graph(all_task_objects) 
-        
-        #task_graph, task_vertex_map = auto_connect_parallel_leaves_by_max_weight(task_graph, task_vertex_map)
 
         topologically_sorted_tasks_elements = None # Ensure defined
         if task_graph and task_vertex_map:
-            print(f"Task graph built. Vertices: {task_graph.vertex_count()}, Edges: {task_graph.edge_count()}")
-            print("\n--- Performing Topological Sort (Kahn's Algorithm) ---")
             topologically_sorted_tasks_elements = topological_sort_kahn(task_graph)
-            if topologically_sorted_tasks_elements is not None:
-                print("Topological Sort Order (Task ID, Name):")
-                for task_obj in topologically_sorted_tasks_elements: print(f"  - {task_obj.id}, {task_obj.name}")
-            else: print("Could not perform topological sort (cycle detected or other graph issue).")
+            if topologically_sorted_tasks_elements is None:
+                print("Could not perform topological sort (cycle detected or other graph issue).")
 
             if task_graph.vertex_count() > 0:
                 schedulable_tasks_list = [v.element() for v in task_graph.vertices()]
 
-                print("\n--- Scheduling Tasks (Forward Pass) ---")
                 schedule_tasks_forward_pass(
                     schedulable_tasks_list, copy.deepcopy(availability), PROJECT_START_DATE,
                     task_graph, task_vertex_map, topologically_sorted_tasks_elements)
                 
-                print("\n--- Scheduling Tasks (Backward Pass) ---")
                 schedule_tasks_custom_backward_pass(
                     schedulable_tasks_list, 
                     task_graph,      # Added task_graph
                     task_vertex_map  # Added task_vertex_map
                 ) 
                 
-                print("\n--- Calculating Task Costs ---")
                 calculate_task_costs(schedulable_tasks_list, daily_costs)
 
                 # --- CONSOLIDATE FINAL REPORT ---
@@ -650,29 +656,20 @@ if __name__ == "__main__":
         else: print("Task graph could not be built or is empty. Skipping simulation.")
     else: print("\nSkipping calculations and scheduling due to parsing errors or missing data.")
 
-    print("\n--- Project Timeline & Task Details ---")
-    header = (f"{'ID':<4} {'Task Name':<40} {'Duration':<10} {'Start (ES)':<12} {'End (EF)':<12} "
-              f"{'Late Start (LS)':<15} {'Late Finish (LF)':<15} {'Assigned Workers':<30} "
-              f"{'Slack':<10} {'Cost':<10} {'Status':<15} {'Notes'}")
-    print(header); print("-" * (len(header) + 10))
     if final_tasks_to_report:
         clean_report = []
         total_project_cost = 0.0
         actual_project_finish_date = PROJECT_START_DATE 
         sorted_tasks_for_report = sorted(final_tasks_to_report, key=lambda t: t.es)
         for i,task in enumerate(sorted_tasks_for_report): 
-            
             if task.status not in ['pending', 'error_cycle_dependency'] and task.ef is not None and task.ef > actual_project_finish_date :
                 actual_project_finish_date = task.ef
             if task.cost is not None: total_project_cost += task.cost
-            print(f"{task.id:<4} {task.name:<40} {format_duration_days(task.actual_duration):<10} {format_date(task.es):<12} {format_date(task.ef):<12} "
-                  f"{format_date(task.ls):<15} {format_date(task.lf):<15} {format_workers(task.assigned_workers_map):<30} "
-                  f"{format_duration_days(task.slack):<10} {f'{task.cost:.2f}':<10} {task.status:<15} {task.notes if task.notes else ''}")
         finish_date_str = format_date(actual_project_finish_date) if actual_project_finish_date != PROJECT_START_DATE or any(t.ef for t in sorted_tasks_for_report if t.ef is not None) else "N/A (No tasks scheduled)"
         print("\n--- Project Summary ---")
         print(f"Initial Project Start Date: {format_date(PROJECT_START_DATE)}")
         print(f"Calculated Project Finish Date: {finish_date_str}")
         print(f"Total Estimated Project Cost: {total_project_cost:.2f}")
     else: print("No tasks to display.")
-    if final_tasks_to_report : export_timeline_to_csv(final_tasks_to_report, "project/timeline_report.csv") 
+    if final_tasks_to_report : export_timeline_to_csv(final_tasks_to_report, os.path.join(PROJECT_PATH,'timeline_report.csv')) 
     print("\n--- Script Execution Finished ---")
