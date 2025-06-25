@@ -4,7 +4,7 @@ import math
 import ast  # For safely evaluating string representations of dicts
 import copy # For deep copying worker pool
 import pandas as pd
-from graph import Graph, Vertex, Edge # Assuming graph.py is in the same directory or project path
+from project.submition.graph import Graph, Vertex, Edge # Assuming graph.py is in the same directory or project path
 
 # 1. Define the project start date
 PROJECT_START_DATE = datetime.date(2025, 6, 30)

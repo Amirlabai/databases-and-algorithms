@@ -11,7 +11,7 @@
 from graphics import *
 from point import Point
 from line import Line
-from graph import *
+from project.submition.graph import *
 import tkinter as tk
 import numpy as np
 import sys

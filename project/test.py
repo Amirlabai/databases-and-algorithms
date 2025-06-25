@@ -1,6 +1,6 @@
 import unittest
 import datetime
-from timeline_calculator import (
+from project.submition.timeline_calculator import (
     Task, PROJECT_START_DATE,
     calculate_task_initial_values, schedule_tasks_forward_pass,
     schedule_tasks_backward_pass, calculate_task_costs,

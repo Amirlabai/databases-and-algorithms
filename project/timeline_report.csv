@@ -1,55 +1,55 @@
 ﻿Tid,Task Name,Actual Duration (days),Start Date (ES),End Date (EF),Slack (days),Cost
-1,Start order,0 days,09/05/2022,09/05/2022,0 days,0
-2,drilling,4 days,09/05/2022,13/05/2022,0 days,11600
-3,OSB placement,2 days,13/05/2022,15/05/2022,3 days,3200
-4,Floor iron and electricity,5 days,13/05/2022,18/05/2022,0 days,8000
-5,Eng approval,2 days,18/05/2022,20/05/2022,0 days,3200
-6,Floor cement,1 days,20/05/2022,21/05/2022,0 days,3700
-7,Walls and Mamad,5 days,21/05/2022,26/05/2022,0 days,16000
-8,Windos open,3 days,26/05/2022,29/05/2022,0 days,9600
-9,Wall closing,4 days,05/06/2022,09/06/2022,0 days,12800
-10,Mamad walls and electricity preparation,7 days,29/05/2022,05/06/2022,0 days,22400
-11,Walls 3.05,1 days,09/06/2022,10/06/2022,0 days,3700
-12,Second floor preparation,3 days,10/06/2022,13/06/2022,0 days,4800
-13,Ceiling iron,2 days,13/06/2022,15/06/2022,0 days,4800
-14,Electricity preparation,2 days,15/06/2022,17/06/2022,0 days,6400
-15,Eng approval,1 days,17/06/2022,18/06/2022,0 days,1300
-16,Second floor cement,1 days,18/06/2022,19/06/2022,0 days,3700
-17,Second floor walls,5 days,19/06/2022,24/06/2022,0 days,8000
-18,Blocks,3 days,24/06/2022,27/06/2022,0 days,4800
-19,Cement approval,1 days,02/07/2022,03/07/2022,0 days,1600
-20,Wall cement,2 days,03/07/2022,05/07/2022,0 days,2600
-21,Second floor walls,9 days,08/07/2022,17/07/2022,0 days,28800
-22,AC preparations,5 days,21/07/2022,26/07/2022,0 days,16000
-23,Eng approval,2 days,26/07/2022,28/07/2022,14 days,2600
-24,Service floor cement,5 days,26/07/2022,31/07/2022,0 days,16000
-25,External walls,5 days,31/07/2022,05/08/2022,0 days,16000
-26,First floor ceiling dismental,6 days,05/08/2022,11/08/2022,0 days,19200
-27,Second floor ceiling dismental,5 days,27/06/2022,02/07/2022,0 days,16000
-28,General cleaning,6 days,11/08/2022,17/08/2022,0 days,19200
-29,First block,5 days,03/07/2022,08/07/2022,0 days,16000
-30,First floor blocks,3 days,08/07/2022,11/07/2022,0 days,3900
-31,Electricity marking with family,4 days,17/07/2022,21/07/2022,0 days,12800
-32,Door preparation,13 days,17/08/2022,30/08/2022,0 days,41600
-33,Second floor-first block,5 days,30/08/2022,04/09/2022,0 days,16000
-34,Second floor-walls,29 days,04/09/2022,03/10/2022,0 days,92800
-35,Electricity marking2,7 days,05/10/2022,12/10/2022,4 days,25900
-36,Sanitary preparations,2 days,03/10/2022,05/10/2022,7 days,6400
-37,Sanitary preparations second floor,4 days,12/10/2022,16/10/2022,0 days,12800
-38,Plaster internal,5 days,16/10/2022,21/10/2022,0 days,16000
-39,Roof placement,2 days,23/10/2022,25/10/2022,0 days,3200
-40,Insulation,2 days,21/10/2022,23/10/2022,0 days,5800
-41,Wood galery,3 days,25/10/2022,28/10/2022,29 days,4800
-42,Roof finish,4 days,26/10/2022,30/10/2022,27 days,6400
-43,External plaster,2 days,28/10/2022,30/10/2022,0 days,3200
-44,Balcony insulation,4 days,30/10/2022,03/11/2022,0 days,6400
-45,Internal plaster finishing,5 days,21/10/2022,26/10/2022,0 days,8000
-46,flooring,14 days,12/11/2022,26/11/2022,0 days,51800
-47,Plastering,10 days,26/10/2022,05/11/2022,0 days,13000
-48,Paint 1 hand,1 days,26/11/2022,27/11/2022,0 days,2900
-49,External plaster,2 days,05/11/2022,07/11/2022,0 days,3200
-50,Aluminum installation,2 days,27/11/2022,29/11/2022,0 days,3200
-51,pergola,5 days,07/11/2022,12/11/2022,0 days,8000
-52,Rails,2 days,29/11/2022,01/12/2022,0 days,1600
-53,External development,14 days,26/11/2022,10/12/2022,0 days,22400
-54,Delivery,0 days,10/12/2022,10/12/2022,0 days,0
+1,Start order,0 days,09/05/2022,09/05/2022,0 days,0.00
+2,drilling,4 days,09/05/2022,13/05/2022,0 days,11600.00
+3,OSB placement,2 days,13/05/2022,15/05/2022,3 days,3200.00
+4,Floor iron and electricity,5 days,13/05/2022,18/05/2022,0 days,8000.00
+5,Eng approval,2 days,18/05/2022,20/05/2022,0 days,3200.00
+6,Floor cement,1 days,20/05/2022,21/05/2022,0 days,3700.00
+7,Walls and Mamad,5 days,21/05/2022,26/05/2022,0 days,16000.00
+8,Windos open,3 days,26/05/2022,29/05/2022,0 days,9600.00
+9,Wall closing,4 days,05/06/2022,09/06/2022,0 days,12800.00
+10,Mamad walls and electricity preparation,7 days,29/05/2022,05/06/2022,0 days,22400.00
+11,Walls 3.05,1 days,09/06/2022,10/06/2022,0 days,3700.00
+12,Second floor preparation,3 days,10/06/2022,13/06/2022,0 days,4800.00
+13,Ceiling iron,2 days,13/06/2022,15/06/2022,0 days,4800.00
+14,Electricity preparation,2 days,15/06/2022,17/06/2022,0 days,6400.00
+15,Eng approval,1 days,17/06/2022,18/06/2022,0 days,1300.00
+16,Second floor cement,1 days,18/06/2022,19/06/2022,0 days,3700.00
+17,Second floor walls,5 days,19/06/2022,24/06/2022,0 days,8000.00
+18,Blocks,3 days,24/06/2022,27/06/2022,0 days,4800.00
+19,Cement approval,1 days,02/07/2022,03/07/2022,0 days,1600.00
+20,Wall cement,2 days,03/07/2022,05/07/2022,0 days,2600.00
+21,Second floor walls,9 days,08/07/2022,17/07/2022,0 days,28800.00
+22,AC preparations,5 days,21/07/2022,26/07/2022,0 days,16000.00
+23,Eng approval,2 days,26/07/2022,28/07/2022,14 days,2600.00
+24,Service floor cement,5 days,26/07/2022,31/07/2022,0 days,16000.00
+25,External walls,5 days,31/07/2022,05/08/2022,0 days,16000.00
+26,First floor ceiling dismental,6 days,05/08/2022,11/08/2022,0 days,19200.00
+27,Second floor ceiling dismental,5 days,27/06/2022,02/07/2022,0 days,16000.00
+28,General cleaning,6 days,11/08/2022,17/08/2022,0 days,19200.00
+29,First block,5 days,03/07/2022,08/07/2022,0 days,16000.00
+30,First floor blocks,3 days,08/07/2022,11/07/2022,0 days,3900.00
+31,Electricity marking with family,4 days,17/07/2022,21/07/2022,0 days,12800.00
+32,Door preparation,13 days,17/08/2022,30/08/2022,0 days,41600.00
+33,Second floor-first block,5 days,30/08/2022,04/09/2022,0 days,16000.00
+34,Second floor-walls,29 days,04/09/2022,03/10/2022,0 days,92800.00
+35,Electricity marking2,7 days,05/10/2022,12/10/2022,4 days,25900.00
+36,Sanitary preparations,2 days,03/10/2022,05/10/2022,7 days,6400.00
+37,Sanitary preparations second floor,4 days,12/10/2022,16/10/2022,0 days,12800.00
+38,Plaster internal,5 days,16/10/2022,21/10/2022,0 days,16000.00
+39,Roof placement,2 days,23/10/2022,25/10/2022,0 days,3200.00
+40,Insulation,2 days,21/10/2022,23/10/2022,0 days,5800.00
+41,Wood galery,3 days,25/10/2022,28/10/2022,29 days,4800.00
+42,Roof finish,4 days,26/10/2022,30/10/2022,27 days,6400.00
+43,External plaster,2 days,28/10/2022,30/10/2022,0 days,3200.00
+44,Balcony insulation,4 days,30/10/2022,03/11/2022,0 days,6400.00
+45,Internal plaster finishing,5 days,21/10/2022,26/10/2022,0 days,8000.00
+46,flooring,14 days,12/11/2022,26/11/2022,0 days,51800.00
+47,Plastering,10 days,26/10/2022,05/11/2022,0 days,13000.00
+48,Paint 1 hand,1 days,26/11/2022,27/11/2022,0 days,2900.00
+49,External plaster,2 days,05/11/2022,07/11/2022,0 days,3200.00
+50,Aluminum installation,2 days,27/11/2022,29/11/2022,0 days,3200.00
+51,pergola,5 days,07/11/2022,12/11/2022,0 days,8000.00
+52,Rails,2 days,29/11/2022,01/12/2022,0 days,1600.00
+53,External development,14 days,26/11/2022,10/12/2022,0 days,22400.00
+54,Delivery,0 days,10/12/2022,10/12/2022,0 days,0.00
